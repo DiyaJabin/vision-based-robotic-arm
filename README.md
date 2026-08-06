@@ -1,113 +1,92 @@
 <div align="center">
 
-# Vision-Based Robotic Arm
+# Vision-Based Robotic Arm for Intelligent Tabletop Pick-and-Place
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![PyBullet](https://img.shields.io/badge/Simulation-PyBullet-orange)
 ![OpenCV](https://img.shields.io/badge/Computer%20Vision-OpenCV-green?logo=opencv&logoColor=white)
-![YOLOv8](https://img.shields.io/badge/Object%20Detection-YOLOv8-purple)
+![YOLOv8](https://img.shields.io/badge/Object%20Detection-YOLOv8n-purple)
 ![PyTorch](https://img.shields.io/badge/Deep%20Learning-PyTorch-red?logo=pytorch&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-brightgreen)
 
-### A Simulation-Based Intelligent Tabletop Pick-and-Place System
+### A Simulation-First Approach to Robotic Perception, Pose Estimation, and Automated Grasping
 
 </div>
 
 ---
 
-## About the Project
+## Project Description
 
-This project develops a vision-based robotic arm capable of detecting tabletop objects and performing automated pick-and-place operations.
-
-The system is implemented in PyBullet using a simulated robotic arm and a virtual overhead RGB camera. Images captured from the simulated workspace are processed using OpenCV and YOLOv8 to detect and locate objects.
-
-The detected image coordinates are transformed into robot workspace coordinates. The robotic arm then uses inverse kinematics to move towards the selected object, grasp it and place it inside a designated destination area.
-
-The project follows a simulation-first approach, allowing the complete vision, planning and control pipeline to be tested under repeatable conditions before considering physical hardware implementation.
+This project develops an intelligent vision-guided robotic arm system designed for tabletop pick-and-place operations. Operating in a physics-based PyBullet simulation environment, the system utilizes a virtual overhead RGB camera to capture workspace scenes, identify objects using computer vision and deep learning, compute 3D world coordinates, evaluate graspability, and execute pick-and-place tasks via inverse kinematics.
 
 ---
 
-## Main Features
+## Problem Statement
 
-- Robotic-arm simulation using PyBullet
-- Virtual overhead RGB camera
-- Tabletop object detection using YOLOv8n
-- Classical image processing using OpenCV
-- Object-centre and orientation estimation
-- Pixel-to-world coordinate transformation
-- Object reachability checking
-- Graspability-based object selection
-- Inverse-kinematics-based arm control
-- Collision-aware pick-and-place execution
-- Performance and failure logging
+Automated robotic pick-and-place systems face significant challenges when operating under object visual variations, partial occlusions, variable lighting, and uncertain grasp conditions. Standard computer vision techniques often struggle with complex scenes, while deep-learning detectors alone may produce false positives or lack precision for physical grasp execution. This project addresses these challenges by developing a robust perception pipeline combined with spatial feasibility evaluation.
 
 ---
 
-## Proposed Approach
+## Proposed Simulation-First Approach
 
-The project compares two perception approaches.
+A simulation-first strategy using PyBullet is adopted to enable rapid algorithm iteration, safe visual perception testing, and repeatable kinematics validation prior to potential physical hardware deployment.
 
-### Baseline Method
+### Perception Framework & Scope
 
-The baseline method uses classical computer vision:
-
-- HSV colour segmentation
-- Binary masking
-- Morphological operations
-- Contour detection
-- Object-centroid calculation
-- Minimum-area rectangle for orientation estimation
-
-### Proposed Method
-
-The proposed method combines deep learning and classical computer vision:
-
-- YOLOv8n object detection
-- Confidence-based detection filtering
-- Colour and contour validation
-- Object pose estimation
-- Reachability and gripper-clearance checking
-- Graspability scoring
-- Inverse kinematics
-- Pick-and-place execution
-
-High-confidence YOLO detections are accepted directly. Medium-confidence detections are validated using colour, contour and shape information. Low-confidence detections are rejected or processed again.
+- **Simulation Platform**: **PyBullet** serves as the primary physics simulation engine and workspace environment.
+- **Classical Vision Baseline**: **OpenCV** provides classical HSV color segmentation and contour detection baselines.
+- **AI-Based Detection**: **YOLOv8n** will later provide deep-learning object detection for tabletop items.
+- **Proposed Core Innovation**: The proposed method will combine YOLO detection confidence scores with classical color and contour validation (**Confidence-Gated Hybrid Perception**) to ensure high detection accuracy and safe grasp selection.
+- **Development Scope Note**: The DA1 milestone focuses on theoretical architecture, dataset strategy, and starter feasibility scripts. Complete pick-and-place execution, inverse kinematics, and YOLO training belong to later development phases.
 
 ---
 
-## System Workflow
+## Main Project Objectives
+
+1. Develop a high-fidelity PyBullet simulation environment featuring a tabletop, robotic arm, target objects, and destination tray.
+2. Establish a synthetic image dataset generation strategy and YOLO-format annotation specification.
+3. Build a classical OpenCV vision baseline for object centroid and orientation estimation.
+4. Integrate YOLOv8n object detection with a confidence-gated hybrid validation filter.
+5. Perform pixel-to-world coordinate transformation using virtual camera calibration.
+6. Evaluate reachability and gripper clearance before attempting grasp motion planning.
+7. Execute inverse-kinematics-driven robotic pick-and-place trajectories in PyBullet.
+
+---
+
+## Planned System Workflow
 
 ```text
-Virtual RGB Camera
+PyBullet Tabletop Scene
         |
         v
-Image Acquisition
+Virtual Overhead RGB Camera
         |
         v
-Image Pre-processing
+Image Preprocessing
         |
         v
-YOLOv8n Object Detection
+OpenCV Baseline OR YOLOv8n Detection
         |
         v
-Colour and Contour Validation
+Confidence-Gated Colour & Contour Validation  (Proposed Contribution)
         |
         v
-Object Centre and Orientation Estimation
+Object Centre & Orientation Estimation
         |
         v
-Pixel-to-World Coordinate Transformation
+Pixel-to-World Coordinate Conversion
         |
         v
-Graspability and Reachability Check
+Reachability & Graspability Evaluation        (Proposed Contribution)
         |
         v
 Inverse Kinematics
         |
         v
-Robotic Arm Pick-and-Place Execution
+Pick-and-Place Execution
         |
         v
-Performance Evaluation
+Evaluation & Logging
 ```
 
 ---
@@ -116,16 +95,14 @@ Performance Evaluation
 
 | Technology | Purpose |
 |---|---|
-| Python | Main programming language |
-| PyBullet | Robotic-arm, camera and physics simulation |
-| OpenCV | Image processing, contours and coordinate calibration |
-| YOLOv8n | Object detection |
-| PyTorch | Deep-learning model training and inference |
-| NumPy | Numerical operations and coordinate transformations |
-| SciPy | Scientific and mathematical utilities |
-| Pandas | Experiment logging and result analysis |
-| Matplotlib | Performance graphs and visualizations |
-| Git and GitHub | Version control and team collaboration |
+| **Python** | Primary development programming language |
+| **PyBullet** | Physics simulation engine, tabletop scene, and robot arm topology |
+| **OpenCV** | Classical image processing, HSV segmentation, and contour analysis |
+| **YOLOv8n** | Lightweight deep-learning object detection model |
+| **PyTorch** | Deep-learning framework for model inference |
+| **NumPy & SciPy** | Numerical matrix transformations and spatial calculations |
+| **Pandas & Matplotlib** | Experiment logging, result aggregation, and plotting |
+| **PyYAML** | Dataset and model configuration management |
 
 ---
 
@@ -134,116 +111,97 @@ Performance Evaluation
 ```text
 vision-based-robotic-arm/
 ├── README.md
+├── Architecture.md
+├── DATASET.md
+├── CONTRIBUTING.md
+├── contribution_matrix.md
 ├── requirements.txt
 ├── .gitignore
+├── LICENSE
 │
 ├── data/
-│   ├── raw/
-│   ├── processed/
+│   ├── sample/
+│   │   └── .gitkeep
 │   └── scripts/
+│       └── load_dataset.py
+│
+├── docs/
+│   └── images/
+│       └── .gitkeep
 │
 ├── simulation/
-│   ├── assets/
-│   ├── robot_models/
-│   ├── scene.py
-│   ├── camera.py
-│   └── environment.py
+│   ├── __init__.py
+│   └── scene.py
 │
 ├── perception/
-│   ├── baseline_hsv.py
-│   ├── yolo_detector.py
-│   ├── hybrid_validator.py
-│   ├── pose_estimator.py
-│   └── calibration.py
+│   └── __init__.py
 │
 ├── robot/
-│   ├── kinematics.py
-│   ├── grasp_selector.py
-│   ├── planner.py
-│   ├── controller.py
-│   └── gripper.py
+│   └── __init__.py
 │
 ├── experiments/
-│   ├── run_trials.py
-│   ├── compare_methods.py
-│   └── results/
+│   └── __init__.py
 │
-├── models/
-├── tests/
-└── docs/
+└── tests/
+    └── __init__.py
 ```
 
 ---
 
-## Installation
+## Installation Instructions
 
-Clone the repository:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/<your-username>/vision-based-robotic-arm.git
+   cd vision-based-robotic-arm
+   ```
 
-```bash
-git clone https://github.com/<your-username>/vision-based-robotic-arm.git
-cd vision-based-robotic-arm
-```
+2. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   ```
 
-Create a virtual environment:
+3. Activate the virtual environment:
+   - **Windows**:
+     ```bash
+     .venv\Scripts\activate
+     ```
+   - **Linux / macOS**:
+     ```bash
+     source .venv/bin/activate
+     ```
 
-```bash
-python -m venv .venv
-```
-
-Activate it on Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-Activate it on Linux or macOS:
-
-```bash
-source .venv/bin/activate
-```
-
-Install the required packages:
-
-```bash
-pip install -r requirements.txt
-```
+4. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ---
 
-## Dependencies
+## Running the DA1 Starter Code
 
-```text
-pybullet
-opencv-python
-ultralytics
-torch
-torchvision
-numpy
-scipy
-pandas
-matplotlib
+### 1. Dataset Loading Utility
+
+Scan and validate sample dataset directory:
+
+```bash
+python data/scripts/load_dataset.py --data-dir data/sample
 ```
 
----
+### 2. PyBullet Simulation Feasibility Scene
 
-## Running the Simulation
-
-Run the PyBullet environment:
+Launch the interactive PyBullet tabletop simulation starter scene:
 
 ```bash
 python simulation/scene.py
 ```
 
-Other execution commands will be added as the perception and robot-control modules are implemented.
-
 ---
 
 ## Future Extensions
 
-- ROS 2 integration
-- Gazebo simulation
-- MoveIt 2 motion planning
-- Physical robotic-arm implementation
-- RGB-D camera integration
-- 6-DoF grasp estimation
-- Sim-to-real transfer
+- Real-world webcam integration for sim-to-real transfer evaluation
+- 6-DoF pose estimation using depth cameras (RGB-D)
+- MoveIt 2 and ROS 2 middleware integration
+- Gazebo simulation comparison
+- Dynamic obstacle avoidance during trajectory planning
