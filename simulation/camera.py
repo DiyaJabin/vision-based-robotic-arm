@@ -49,9 +49,9 @@ def _camera_matrices(
         Tuple containing the view matrix and projection matrix.
     """
     view_matrix = p.computeViewMatrix(
-    	cameraEyePosition=CAMERA_EYE,
-    	cameraTargetPosition=CAMERA_TARGET,
-    	cameraUpVector=CAMERA_UP,
+        cameraEyePosition=CAMERA_EYE,
+        cameraTargetPosition=CAMERA_TARGET,
+        cameraUpVector=CAMERA_UP,
     )
 
     projection_matrix = p.computeProjectionMatrixFOV(
