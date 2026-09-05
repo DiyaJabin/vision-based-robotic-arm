@@ -1,4 +1,4 @@
-"""Virtual overhead RGB-D camera for the PyBullet simulation.
+"""Capture a camera frame and return it in OpenCV BGR format.
 
 This module captures RGB and depth images from a fixed overhead camera
 inside the PyBullet tabletop environment.
@@ -24,7 +24,7 @@ from simulation import scene
 # ============================================================
 
 DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 640
+DEFAULT_HEIGHT = 480
 
 CAMERA_EYE = (0.50, 0.00, 2.20)
 CAMERA_TARGET = (0.50, 0.00, 0.65)
@@ -64,7 +64,7 @@ def _camera_matrices(
     return view_matrix, projection_matrix
 
 
-def capture_rgb(
+def capture_bgr(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
 ) -> np.ndarray:
@@ -229,7 +229,7 @@ def capture_and_save(
     Returns:
         Absolute path of the saved image.
     """
-    frame = capture_rgb(
+    frame = capture_bgr(
         width=width,
         height=height,
     )
@@ -249,7 +249,7 @@ def main() -> None:
     scene.load_complete_scene()
 
     try:
-        frame = capture_rgb()
+        frame = capture_bgr()
 
         output_path = capture_and_save(
             "data/generated/camera_preview.png"

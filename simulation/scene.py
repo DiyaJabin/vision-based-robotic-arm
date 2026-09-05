@@ -213,7 +213,7 @@ def spawn_object(
 
     body_id = p.createMultiBody(
         baseMass=mass,
-        baseCollisionShapeIndex=collision_shape,
+        baseCollisionShapeIndex=-1,
         baseVisualShapeIndex=visual_shape,
         basePosition=list(position),
         baseOrientation=orientation,

@@ -35,7 +35,7 @@ def main() -> None:
 
         print("Capturing camera frame...")
 
-        frame = camera.capture_rgb()
+        frame = camera.capture_bgr()
 
         print("Running OpenCV HSV detection...")
 

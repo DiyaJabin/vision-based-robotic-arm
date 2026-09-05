@@ -236,6 +236,29 @@ def step_simulation(num_steps: int = SETTLE_STEPS) -> None:
     for _ in range(num_steps):
         p.stepSimulation()
 
+def update_object_poses(objects):
+    """Update metadata with the actual poses after physics settling."""
+
+    for obj in objects:
+        position, orientation = p.getBasePositionAndOrientation(
+            obj["object_id"]
+        )
+
+        roll, pitch, yaw = p.getEulerFromQuaternion(
+            orientation
+        )
+
+        obj["world_position"] = {
+            "x": float(position[0]),
+            "y": float(position[1]),
+            "z": float(position[2]),
+        }
+
+        obj["world_orientation"] = {
+            "roll": float(roll),
+            "pitch": float(pitch),
+            "yaw": float(yaw),
+        }
 
 def save_metadata(
     metadata: List[Dict[str, object]],
@@ -352,10 +375,33 @@ def generate_dataset(
 
             step_simulation()
 
+            # Update metadata with the actual object poses
+            # after physics settling.
+            for obj in metadata:
+                position, orientation = p.getBasePositionAndOrientation(
+                    obj["object_id"]
+                )
+
+                roll, pitch, yaw = p.getEulerFromQuaternion(
+                    orientation
+                )
+
+                obj["world_position"] = {
+                    "x": float(position[0]),
+                    "y": float(position[1]),
+                    "z": float(position[2]),
+                }
+
+                obj["world_orientation"] = {
+                    "roll": float(roll),
+                    "pitch": float(pitch),
+                    "yaw": float(yaw),
+                }
+
             image_filename = f"frame_{frame_index:05d}.png"
             image_path = images_dir / image_filename
 
-            frame = camera.capture_rgb(
+            frame = camera.capture_bgr(
                 width=camera.DEFAULT_WIDTH,
                 height=camera.DEFAULT_HEIGHT,
             )
@@ -392,7 +438,6 @@ def generate_dataset(
         f"Metadata directory: "
         f"{(output_dir / 'metadata').resolve()}"
     )
-
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments."""

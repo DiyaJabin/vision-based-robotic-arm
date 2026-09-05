@@ -177,7 +177,7 @@ def detect_objects(
                     "class_id": config["class_id"],
                     "class_name": class_name,
                     "color": config["color"],
-                    "confidence": round(float(confidence), 3),
+                    "baseline_score": round(float(confidence), 3),
                     "bbox": {
                         "x": int(x),
                         "y": int(y),
@@ -248,7 +248,7 @@ def draw_detections(
 
         label = (
             f'{detection["class_name"]} '
-            f'({detection["confidence"]:.2f})'
+            f'({detection["baseline_score"]:.2f})'
         )
 
         cv2.putText(
