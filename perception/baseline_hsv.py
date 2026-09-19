@@ -12,10 +12,18 @@ It does not perform YOLO detection, pixel-to-world conversion,
 grasp planning, inverse kinematics, or robot control.
 """
 
+import sys
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
+
+# Preserve direct script execution from the repository or another directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.config import CLASS_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -24,19 +32,19 @@ import numpy as np
 
 OBJECT_CONFIG = {
     "cube": {
-        "class_id": 0,
+        "class_id": CLASS_IDS["cube"],
         "color": "red",
         "lower": [(0, 100, 80), (170, 100, 80)],
         "upper": [(10, 255, 255), (180, 255, 255)],
     },
     "cylinder": {
-        "class_id": 1,
+        "class_id": CLASS_IDS["cylinder"],
         "color": "green",
         "lower": [(35, 70, 60)],
         "upper": [(85, 255, 255)],
     },
     "box": {
-        "class_id": 2,
+        "class_id": CLASS_IDS["box"],
         "color": "blue",
         "lower": [(90, 70, 60)],
         "upper": [(135, 255, 255)],

@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from core.config import CLASS_IDS, CLASS_NAMES
 from simulation import camera
 from simulation import scene
 
@@ -41,7 +42,7 @@ DEFAULT_SEED = 42
 
 DEFAULT_OUTPUT_DIR = Path("data/generated")
 
-OBJECT_TYPES = ("cube", "cylinder", "box")
+OBJECT_TYPES = tuple(CLASS_NAMES.values())
 
 # Randomized tabletop workspace.
 RANDOM_X_RANGE = (0.30, 0.72)
@@ -215,7 +216,7 @@ def create_random_scene(
 
         metadata.append(
             {
-                "class_id": scene.OBJECT_CLASS_IDS[object_type],
+                "class_id": CLASS_IDS[object_type],
                 "class_name": object_type,
                 "object_id": body_id,
                 "world_position": {

@@ -10,15 +10,13 @@ To train YOLOv8n effectively for tabletop pick-and-place, synthetic image data w
 
 ### Object Classes
 
-The initial dataset targets five primary tabletop object categories:
+The initial dataset targets three tabletop object categories, defined in `core/config.py`. Bottle and cup are future classes with no IDs assigned.
 
 | Class ID | Class Name | Description | Primary Geometry |
 |---|---|---|---|
 | `0` | `cube` | Small manipulation block | Box |
 | `1` | `cylinder` | Cylindrical peg or container | Cylinder |
-| `2` | `bottle` | Beverage container model | Multi-part Cylinder/Cone |
-| `3` | `cup` | Open container object | Hollow Cylinder |
-| `4` | `box` | Packaging box model | Rectangular Box |
+| `2` | `box` | Packaging box model | Rectangular Box |
 
 ### Domain Randomization Factors
 
@@ -66,11 +64,11 @@ Each image is accompanied by a `.txt` label file sharing the same base filename.
 ```text
 0 0.4521 0.6120 0.0840 0.1120
 1 0.7210 0.3850 0.0620 0.1450
-3 0.2310 0.7890 0.0910 0.0980
+2 0.2310 0.7890 0.0910 0.0980
 ```
 
 Where:
-- `class_id`: Integer index corresponding to object class (`0` = cube, `1` = cylinder, etc.).
+- `class_id`: Integer index corresponding to object class (`0` = cube, `1` = cylinder, `2` = box).
 - `x_center`, `y_center`: Bounding box center coordinates normalized by image width and height.
 - `width`, `height`: Bounding box dimensions normalized by image width and height.
 
@@ -85,9 +83,7 @@ test: images/test
 names:
   0: cube
   1: cylinder
-  2: bottle
-  3: cup
-  4: box
+  2: box
 ```
 
 ---
@@ -98,7 +94,7 @@ Before training, automated validation scripts enforce dataset integrity:
 
 1. **Empty Label Verification**: Ensures images without objects either have valid empty label files or are accounted for as negative samples.
 2. **Coordinate Bounding**: Confirms all normalized coordinates fall strictly within \([0.0, 1.0]\).
-3. **Resolution Consistency**: Verifies uniform image resolution (e.g., \(640 \times 640\)).
+3. **Resolution Consistency**: Verifies uniform image resolution (e.g., \(640 \times 480\)).
 4. **Class Balance Audit**: Monitors class distribution to avoid training skew toward any single object type.
 
 ---

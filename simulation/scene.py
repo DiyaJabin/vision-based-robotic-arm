@@ -12,10 +12,17 @@ from __future__ import annotations
 
 import sys
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pybullet as p
 import pybullet_data
+
+# Preserve direct script execution from the repository or another directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.config import BIN_SCENE_KEYS, CLASS_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -36,11 +43,7 @@ CYLINDER_HEIGHT = 0.08
 BOX_HALF_EXTENTS = (0.04, 0.03, 0.025)
 
 # Object class IDs used by the initial synthetic dataset.
-OBJECT_CLASS_IDS = {
-    "cube": 0,
-    "cylinder": 1,
-    "box": 2,
-}
+OBJECT_CLASS_IDS = CLASS_IDS
 
 OBJECT_COLORS = {
     "cube": (0.90, 0.15, 0.15, 1.0),       # red
@@ -269,7 +272,9 @@ def create_destination_zones() -> Dict[str, int]:
         (0.65, 0.30),
     )
 
-    for index, (x, y) in enumerate(zone_positions, start=1):
+    for index, (zone_key, (x, y)) in enumerate(
+        zip(BIN_SCENE_KEYS.values(), zone_positions), start=1
+    ):
         visual_shape = p.createVisualShape(
             p.GEOM_BOX,
             halfExtents=[0.055, 0.045, 0.003],
@@ -281,7 +286,7 @@ def create_destination_zones() -> Dict[str, int]:
             halfExtents=[0.055, 0.045, 0.003],
         )
 
-        zones[f"destination_{index}"] = p.createMultiBody(
+        zones[zone_key] = p.createMultiBody(
             baseMass=0.0,
             baseCollisionShapeIndex=collision_shape,
             baseVisualShapeIndex=visual_shape,

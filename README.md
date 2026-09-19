@@ -113,11 +113,14 @@ vision-based-robotic-arm/
 ├── README.md
 ├── Architecture.md
 ├── DATASET.md
-├── CONTRIBUTING.md
-├── contribution_matrix.md
 ├── requirements.txt
 ├── .gitignore
 ├── LICENSE
+│
+├── core/
+│   ├── __init__.py
+│   ├── config.py
+│   └── contracts.py
 │
 ├── data/
 │   ├── sample/

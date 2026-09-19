@@ -17,6 +17,7 @@ import cv2
 import numpy as np
 import pybullet as p
 
+from core.config import CAMERA_HEIGHT, CAMERA_WIDTH
 from simulation import scene
 
 
@@ -24,11 +25,11 @@ from simulation import scene
 # Camera configuration
 # ============================================================
 
-DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 480
+DEFAULT_WIDTH = CAMERA_WIDTH
+DEFAULT_HEIGHT = CAMERA_HEIGHT
 
 CAMERA_EYE = (0.50, 0.00, 2.20)
-CAMERA_TARGET = (0.50, 0.00, 0.65)
+CAMERA_TARGET = (0.50, 0.00, scene.TABLETOP_Z)
 CAMERA_UP = (0.00, 1.00, 0.00)
 
 FIELD_OF_VIEW = 55.0

@@ -70,11 +70,11 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 ### 1. PyBullet Tabletop Scene
 - **Role**: Serves as the primary physics simulation environment.
-- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), target objects (cube, cylinder, bottle, cup, box), and destination tray.
+- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), initial target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
 - **Physics**: Configured with real-world gravity (\(g = -9.81\,\text{m/s}^2\)) and realistic contact friction.
 
 ### 2. Virtual Overhead RGB Camera
-- **Role**: Captures high-resolution workspace images.
+- **Role**: Captures workspace images at 640 x 480 pixels by default.
 - **Placement**: Fixed overhead eye-in-sky or wrist-mounted virtual camera generating synthetic RGB arrays, depth maps, and segmentation masks.
 
 ### 3. Image Preprocessing
@@ -96,6 +96,8 @@ The core novelty lies in combining neural object detection with classical comput
 
 ### Confidence-Gated Perception Filtering
 
+The thresholds below are initial experimental, configurable values defined by `ConfidenceThresholds` in `core/config.py`, not scientifically validated thresholds.
+
 ```text
                       [ YOLOv8n Detection ]
                                 |
@@ -103,7 +105,7 @@ The core novelty lies in combining neural object detection with classical comput
                |                |                |
                v                v                v
       High Confidence    Medium Confidence   Low Confidence
-       (Score >= 0.85)   (0.50 <= Score < 0.85) (Score < 0.50)
+       (Score >= 0.80)   (0.50 <= Score < 0.80) (Score < 0.50)
                |                |                |
                v                v                v
           Accept &        Apply Colour &     Reject / Re-observe
@@ -119,9 +121,9 @@ The core novelty lies in combining neural object detection with classical comput
                   Extract Pose     Re-observe
 ```
 
-1. **High-Confidence Detections (\(\ge 0.85\))**:
+1. **High-Confidence Detections (\(\ge 0.80\))**:
    - Directly accepted into pose estimation.
-2. **Medium-Confidence Detections (\(0.50 - 0.84\))**:
+2. **Medium-Confidence Detections (\(0.50 \le \mathrm{confidence} < 0.80\))**:
    - Subjected to HSV color verification and geometric contour consistency checks (e.g., aspect ratio, perimeter-to-area ratio). Detections passing validation are accepted; failing ones are discarded.
 3. **Low-Confidence Detections (\(< 0.50\))**:
    - Automatically rejected or flagged for re-observation to prevent false positive picks.
