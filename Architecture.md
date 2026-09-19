@@ -70,11 +70,11 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 ### 1. PyBullet Tabletop Scene
 - **Role**: Serves as the primary physics simulation environment.
-- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), target objects (cube, cylinder, bottle, cup, box), and destination tray.
+- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), initial target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
 - **Physics**: Configured with real-world gravity (\(g = -9.81\,\text{m/s}^2\)) and realistic contact friction.
 
 ### 2. Virtual Overhead RGB Camera
-- **Role**: Captures high-resolution workspace images.
+- **Role**: Captures workspace images at 640 x 480 pixels by default.
 - **Placement**: Fixed overhead eye-in-sky or wrist-mounted virtual camera generating synthetic RGB arrays, depth maps, and segmentation masks.
 
 ### 3. Image Preprocessing
@@ -84,6 +84,8 @@ The system is structured as a sequential perception-to-action pipeline operating
 ### 4. Detection Module Options
 - **Classical OpenCV Baseline**: HSV color segmentation, thresholding, morphological opening/closing, and contour extraction.
 - **AI-Based YOLOv8n Detector**: Lightweight deep-learning model providing bounding box coordinates, class labels, and confidence scores.
+
+The implemented detector adapter does not assume that pretrained COCO class IDs represent `cube`, `cylinder`, or `box`; project detections are accepted only through supported names or an explicit custom-weight class mapping.
 
 ---
 
@@ -96,6 +98,8 @@ The core novelty lies in combining neural object detection with classical comput
 
 ### Confidence-Gated Perception Filtering
 
+The thresholds below are initial experimental, configurable values defined by `ConfidenceThresholds` in `core/config.py`, not scientifically validated thresholds.
+
 ```text
                       [ YOLOv8n Detection ]
                                 |
@@ -103,7 +107,7 @@ The core novelty lies in combining neural object detection with classical comput
                |                |                |
                v                v                v
       High Confidence    Medium Confidence   Low Confidence
-       (Score >= 0.85)   (0.50 <= Score < 0.85) (Score < 0.50)
+       (Score >= 0.80)   (0.50 <= Score < 0.80) (Score < 0.50)
                |                |                |
                v                v                v
           Accept &        Apply Colour &     Reject / Re-observe
@@ -119,9 +123,9 @@ The core novelty lies in combining neural object detection with classical comput
                   Extract Pose     Re-observe
 ```
 
-1. **High-Confidence Detections (\(\ge 0.85\))**:
+1. **High-Confidence Detections (\(\ge 0.80\))**:
    - Directly accepted into pose estimation.
-2. **Medium-Confidence Detections (\(0.50 - 0.84\))**:
+2. **Medium-Confidence Detections (\(0.50 \le \mathrm{confidence} < 0.80\))**:
    - Subjected to HSV color verification and geometric contour consistency checks (e.g., aspect ratio, perimeter-to-area ratio). Detections passing validation are accepted; failing ones are discarded.
 3. **Low-Confidence Detections (\(< 0.50\))**:
    - Automatically rejected or flagged for re-observation to prevent false positive picks.
@@ -132,6 +136,8 @@ Before generating motion trajectories, the candidate object location is evaluate
 - **Kinematic Reachability**: Checks whether the converted 3D world coordinate lies strictly within the workspace envelope of the robotic arm.
 - **Gripper Clearance**: Verifies that adjacent distractor objects or table boundaries leave sufficient clearance for gripper jaw placement without collision.
 - **Graspability Score**: Ranks candidate objects based on confidence, clearance, and distance to optimal end-effector alignment.
+
+The KUKA iiwa URDF currently has no gripper fingers. The implemented gripper therefore uses a fixed PyBullet constraint only after proximity, orientation, and motion checks. This is a simulation simplification, not a physical gripper model. Clearance and score weights are configurable initial parameters and have not been experimentally optimized.
 
 ---
 

@@ -1,7 +1,8 @@
 """Capture a camera frame and return it in OpenCV BGR format.
 
-This module captures RGB and depth images from a fixed overhead camera
-inside the PyBullet tabletop environment.
+This module captures color and depth images from a fixed overhead camera
+inside the PyBullet tabletop environment. Color frames are returned as BGR
+arrays for OpenCV.
 
 It reuses the scene setup from simulation.scene and does not create a
 separate simulation environment.
@@ -16,6 +17,7 @@ import cv2
 import numpy as np
 import pybullet as p
 
+from core.config import CAMERA_HEIGHT, CAMERA_WIDTH
 from simulation import scene
 
 
@@ -23,11 +25,11 @@ from simulation import scene
 # Camera configuration
 # ============================================================
 
-DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 480
+DEFAULT_WIDTH = CAMERA_WIDTH
+DEFAULT_HEIGHT = CAMERA_HEIGHT
 
 CAMERA_EYE = (0.50, 0.00, 2.20)
-CAMERA_TARGET = (0.50, 0.00, 0.65)
+CAMERA_TARGET = (0.50, 0.00, scene.TABLETOP_Z)
 CAMERA_UP = (0.00, 1.00, 0.00)
 
 FIELD_OF_VIEW = 55.0
@@ -35,7 +37,7 @@ NEAR_PLANE = 0.01
 FAR_PLANE = 5.0
 
 
-def _camera_matrices(
+def camera_matrices(
     width: int,
     height: int,
 ) -> Tuple[list[float], list[float]]:
@@ -68,7 +70,7 @@ def capture_bgr(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
 ) -> np.ndarray:
-    """Capture an RGB image from the virtual camera.
+    """Capture a virtual-camera color image and return a BGR array.
 
     The returned image is converted to BGR format so it can be
     directly processed by OpenCV.
@@ -80,7 +82,7 @@ def capture_bgr(
     Returns:
         NumPy array with shape (height, width, 3) in BGR format.
     """
-    view_matrix, projection_matrix = _camera_matrices(width, height)
+    view_matrix, projection_matrix = camera_matrices(width, height)
 
     _, _, rgba_image, _, _ = p.getCameraImage(
         width=width,
@@ -121,7 +123,7 @@ def capture_depth(
     Returns:
         Floating-point NumPy array containing depth values in metres.
     """
-    view_matrix, projection_matrix = _camera_matrices(
+    view_matrix, projection_matrix = camera_matrices(
         width,
         height,
     )
@@ -219,7 +221,7 @@ def capture_and_save(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
 ) -> Path:
-    """Capture an RGB frame and save it to disk.
+    """Capture a BGR frame and save it with OpenCV.
 
     Args:
         output_path: Destination image path.
@@ -257,9 +259,9 @@ def main() -> None:
 
         depth = capture_depth()
 
-        print(f"RGB frame shape: {frame.shape}")
+        print(f"BGR frame shape: {frame.shape}")
         print(f"Depth frame shape: {depth.shape}")
-        print(f"RGB image saved to: {output_path}")
+        print(f"Camera image saved to: {output_path}")
 
         while p.isConnected(client_id):
             if show_frame(frame):
@@ -280,3 +282,28 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def project_world_points(points, width: int = DEFAULT_WIDTH, height: int = DEFAULT_HEIGHT):
+    """Project known world reference points using the configured virtual camera.
+
+    This supports calibration correspondences, not synthetic YOLO annotations.
+    Output is continuous (u,v) pixels with top-left origin. PyBullet/OpenGL
+    matrices are column-major; image v reverses the NDC vertical direction.
+    """
+    if width <= 0 or height <= 0:
+        raise ValueError("Image dimensions must be positive.")
+    world=np.asarray(points,dtype=float)
+    if world.ndim!=2 or world.shape[1]!=3 or not np.isfinite(world).all():
+        raise ValueError("Expected finite N x 3 world points.")
+    view,projection=camera_matrices(width,height)
+    transform=np.asarray(projection).reshape(4,4,order="F") @ np.asarray(view).reshape(4,4,order="F")
+    clip=(transform @ np.column_stack((world,np.ones(len(world)))).T).T
+    if np.any(clip[:,3]<=0):
+        raise ValueError("Reference point is behind the camera.")
+    ndc=clip[:,:3]/clip[:,3,None]
+    return np.column_stack(((ndc[:,0]+1)*width/2,(1-ndc[:,1])*height/2))
+
+
+# Compatibility for existing users of the original private helper.
+_camera_matrices = camera_matrices

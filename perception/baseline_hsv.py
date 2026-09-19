@@ -6,15 +6,24 @@ Classes:
     1 - cylinder - green
     2 - box      - blue
 
-This baseline uses HSV color segmentation and contour analysis.
+This baseline assigns classes by color using HSV segmentation and contours.
+It is a classical color-based baseline, not a hybrid detection validator.
 It does not perform YOLO detection, pixel-to-world conversion,
 grasp planning, inverse kinematics, or robot control.
 """
 
+import sys
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
+
+# Preserve direct script execution from the repository or another directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.config import CLASS_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -23,19 +32,19 @@ import numpy as np
 
 OBJECT_CONFIG = {
     "cube": {
-        "class_id": 0,
+        "class_id": CLASS_IDS["cube"],
         "color": "red",
         "lower": [(0, 100, 80), (170, 100, 80)],
         "upper": [(10, 255, 255), (180, 255, 255)],
     },
     "cylinder": {
-        "class_id": 1,
+        "class_id": CLASS_IDS["cylinder"],
         "color": "green",
         "lower": [(35, 70, 60)],
         "upper": [(85, 255, 255)],
     },
     "box": {
-        "class_id": 2,
+        "class_id": CLASS_IDS["box"],
         "color": "blue",
         "lower": [(90, 70, 60)],
         "upper": [(135, 255, 255)],
@@ -89,10 +98,16 @@ def create_mask(
 
 def calculate_orientation(contour: np.ndarray) -> float:
     """
-    Estimate the dominant contour orientation in degrees.
+    Estimate the longer rectangle axis in image-plane degrees.
 
-    The angle corresponds approximately to the direction of the
-    longer side of the minimum-area bounding rectangle.
+    Image coordinates have x pointing right and y pointing down, so positive
+    angles appear clockwise. The result is the minAreaRect angle plus 90
+    degrees when width < height; no additional range normalization is applied.
+    Rectangle axes are equivalent modulo 180 degrees. Squares have equivalent
+    orientations modulo 90 degrees and no unique longer side. Circular
+    cylinder top views provide no meaningful yaw; their rectangle angle must
+    not be interpreted as physical cylinder yaw. This is not world-frame
+    orientation.
     """
 
     rectangle = cv2.minAreaRect(contour)
@@ -117,11 +132,11 @@ def detect_objects(
         class_id
         class_name
         color
-        confidence
+        baseline_score (area-based heuristic, not a probability)
         bbox
         center
         area
-        orientation
+        orientation (image-plane degrees; see calculate_orientation limitations)
     """
 
     if frame is None or frame.size == 0:
@@ -167,17 +182,16 @@ def detect_objects(
 
             orientation = calculate_orientation(contour)
 
-            # This is a simple classical-baseline confidence proxy,
-            # not a learned probability.
+            # Area-based classical heuristic, not a learned probability.
             image_area = frame.shape[0] * frame.shape[1]
-            confidence = min(1.0, area / max(image_area * 0.02, 1.0))
+            baseline_score = min(1.0, area / max(image_area * 0.02, 1.0))
 
             detections.append(
                 {
                     "class_id": config["class_id"],
                     "class_name": class_name,
                     "color": config["color"],
-                    "baseline_score": round(float(confidence), 3),
+                    "baseline_score": round(float(baseline_score), 3),
                     "bbox": {
                         "x": int(x),
                         "y": int(y),
@@ -312,7 +326,7 @@ def main() -> None:
         print(f"  Class ID    : {detection['class_id']}")
         print(f"  Center      : {detection['center']}")
         print(f"  Bounding box: {detection['bbox']}")
-        print(f"  Orientation : {detection['orientation']} degrees")
+        print(f"  Image angle : {detection['orientation']} degrees")
         print(f"  Area        : {detection['area']}")
 
     annotated = draw_detections(frame, detections)

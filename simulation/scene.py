@@ -12,10 +12,17 @@ from __future__ import annotations
 
 import sys
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pybullet as p
 import pybullet_data
+
+# Preserve direct script execution from the repository or another directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.config import BIN_SCENE_KEYS, CLASS_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -26,9 +33,10 @@ GRAVITY = -9.81
 TIME_STEP = 1.0 / 240.0
 
 TABLE_POSITION = (0.5, 0.0, 0.0)
-ROBOT_POSITION = (0.0, 0.0, 0.62)
+ROBOT_POSITION = (0.0, 0.0, 0.625)
 
-TABLETOP_Z = 0.65
+# table/table.urdf: collision centre 0.6 m + half thickness 0.025 m.
+TABLETOP_Z = 0.625
 
 OBJECT_SIZE = 0.05
 CYLINDER_RADIUS = 0.025
@@ -36,11 +44,7 @@ CYLINDER_HEIGHT = 0.08
 BOX_HALF_EXTENTS = (0.04, 0.03, 0.025)
 
 # Object class IDs used by the initial synthetic dataset.
-OBJECT_CLASS_IDS = {
-    "cube": 0,
-    "cylinder": 1,
-    "box": 2,
-}
+OBJECT_CLASS_IDS = CLASS_IDS
 
 OBJECT_COLORS = {
     "cube": (0.90, 0.15, 0.15, 1.0),       # red
@@ -213,7 +217,7 @@ def spawn_object(
 
     body_id = p.createMultiBody(
         baseMass=mass,
-        baseCollisionShapeIndex=-1,
+        baseCollisionShapeIndex=collision_shape,
         baseVisualShapeIndex=visual_shape,
         basePosition=list(position),
         baseOrientation=orientation,
@@ -269,7 +273,9 @@ def create_destination_zones() -> Dict[str, int]:
         (0.65, 0.30),
     )
 
-    for index, (x, y) in enumerate(zone_positions, start=1):
+    for index, (zone_key, (x, y)) in enumerate(
+        zip(BIN_SCENE_KEYS.values(), zone_positions), start=1
+    ):
         visual_shape = p.createVisualShape(
             p.GEOM_BOX,
             halfExtents=[0.055, 0.045, 0.003],
@@ -281,7 +287,7 @@ def create_destination_zones() -> Dict[str, int]:
             halfExtents=[0.055, 0.045, 0.003],
         )
 
-        zones[f"destination_{index}"] = p.createMultiBody(
+        zones[zone_key] = p.createMultiBody(
             baseMass=0.0,
             baseCollisionShapeIndex=collision_shape,
             baseVisualShapeIndex=visual_shape,

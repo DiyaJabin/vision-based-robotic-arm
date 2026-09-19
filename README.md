@@ -37,7 +37,9 @@ A simulation-first strategy using PyBullet is adopted to enable rapid algorithm 
 - **Classical Vision Baseline**: **OpenCV** provides classical HSV color segmentation and contour detection baselines.
 - **AI-Based Detection**: **YOLOv8n** will later provide deep-learning object detection for tabletop items.
 - **Proposed Core Innovation**: The proposed method will combine YOLO detection confidence scores with classical color and contour validation (**Confidence-Gated Hybrid Perception**) to ensure high detection accuracy and safe grasp selection.
-- **Development Scope Note**: The DA1 milestone focuses on theoretical architecture, dataset strategy, and starter feasibility scripts. Complete pick-and-place execution, inverse kinematics, and YOLO training belong to later development phases.
+- **Implemented Core Interfaces**: The repository now includes YOLO result adaptation, confidence-gated validation, image pose estimation, planar homography, measured KUKA IK/control interfaces, conservative clearance and graspability ranking, a simulation-only constraint gripper, destination mapping, and a bounded pick-and-place loop.
+- **Runtime verification status**: Core perception and planning contracts have dependency-independent tests. PyBullet-dependent motion, constraint grasping, collision checks, camera rendering, and complete pick-and-place execution require verification in the dedicated Windows environment.
+- **Development Scope Note**: Core interfaces and a bounded simulation pick-and-place loop are implemented. YOLO training, runtime demonstration, and experimental evaluation remain future work.
 
 ---
 
@@ -113,11 +115,14 @@ vision-based-robotic-arm/
 ├── README.md
 ├── Architecture.md
 ├── DATASET.md
-├── CONTRIBUTING.md
-├── contribution_matrix.md
 ├── requirements.txt
 ├── .gitignore
 ├── LICENSE
+│
+├── core/
+│   ├── __init__.py
+│   ├── config.py
+│   └── contracts.py
 │
 ├── data/
 │   ├── sample/
@@ -131,13 +136,25 @@ vision-based-robotic-arm/
 │
 ├── simulation/
 │   ├── __init__.py
-│   └── scene.py
+│   ├── scene.py
+│   ├── camera.py
+│   └── run_pick_and_place.py
 │
 ├── perception/
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── yolo_detector.py
+│   ├── hybrid_validator.py
+│   ├── pose_estimator.py
+│   └── calibration.py
 │
 ├── robot/
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── kinematics.py
+│   ├── controller.py
+│   ├── gripper.py
+│   ├── grasp_selector.py
+│   ├── destinations.py
+│   └── pick_and_place.py
 │
 ├── experiments/
 │   └── __init__.py
