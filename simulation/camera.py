@@ -1,7 +1,8 @@
 """Capture a camera frame and return it in OpenCV BGR format.
 
-This module captures RGB and depth images from a fixed overhead camera
-inside the PyBullet tabletop environment.
+This module captures color and depth images from a fixed overhead camera
+inside the PyBullet tabletop environment. Color frames are returned as BGR
+arrays for OpenCV.
 
 It reuses the scene setup from simulation.scene and does not create a
 separate simulation environment.
@@ -68,7 +69,7 @@ def capture_bgr(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
 ) -> np.ndarray:
-    """Capture an RGB image from the virtual camera.
+    """Capture a virtual-camera color image and return a BGR array.
 
     The returned image is converted to BGR format so it can be
     directly processed by OpenCV.
@@ -219,7 +220,7 @@ def capture_and_save(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
 ) -> Path:
-    """Capture an RGB frame and save it to disk.
+    """Capture a BGR frame and save it with OpenCV.
 
     Args:
         output_path: Destination image path.
@@ -257,9 +258,9 @@ def main() -> None:
 
         depth = capture_depth()
 
-        print(f"RGB frame shape: {frame.shape}")
+        print(f"BGR frame shape: {frame.shape}")
         print(f"Depth frame shape: {depth.shape}")
-        print(f"RGB image saved to: {output_path}")
+        print(f"Camera image saved to: {output_path}")
 
         while p.isConnected(client_id):
             if show_frame(frame):

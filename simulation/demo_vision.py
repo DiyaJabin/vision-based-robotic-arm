@@ -4,11 +4,11 @@ Demo for the classical OpenCV vision baseline.
 Pipeline:
     PyBullet scene
         ↓
-    Virtual RGB camera
+    Virtual RGB camera -> BGR frame for OpenCV
         ↓
     OpenCV HSV detection
         ↓
-    Bounding boxes + centers + orientation
+    Bounding boxes + centers + image-plane orientation
 """
 
 import cv2
@@ -33,7 +33,7 @@ def main() -> None:
         for _ in range(60):
             p.stepSimulation()
 
-        print("Capturing camera frame...")
+        print("Capturing BGR camera frame...")
 
         frame = camera.capture_bgr()
 
@@ -49,7 +49,7 @@ def main() -> None:
             print(f"  Class ID    : {detection['class_id']}")
             print(f"  Center      : {detection['center']}")
             print(f"  Bounding box: {detection['bbox']}")
-            print(f"  Orientation : {detection['orientation']} degrees")
+            print(f"  Image angle : {detection['orientation']} degrees")
             print(f"  Area        : {detection['area']}")
 
         annotated = draw_detections(frame, detections)
