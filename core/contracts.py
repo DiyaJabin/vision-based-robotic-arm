@@ -1,4 +1,4 @@
-"""Lightweight contracts for future perception modules; no detector logic.
+"""Lightweight perception and manipulation contracts; no execution logic.
 
 World positions use metres in the PyBullet world frame (Z upward), with
 Euler angles in radians. The contracts below describe image geometry only:
@@ -50,7 +50,7 @@ class DetectionResult:
 
 @dataclass(frozen=True)
 class ValidatedDetection:
-    """Future validation outcome, without implementing validation.
+    """Validation outcome, without implementing validation.
 
     validation_score is a heuristic in [0, 1], distinct from detector
     confidence, or None when validation was not performed. reason explains
@@ -79,3 +79,47 @@ class ObjectPose2D:
     width: float
     height: float
     orientation_deg: float | None
+
+
+@dataclass(frozen=True)
+class ObjectObservation:
+    """Accepted image observation; classical scores never fill confidence.
+
+    source is 'opencv' or 'yolo'. The baseline dictionary adapter retains its
+    contour centroid; a YOLO observation initially uses the box centre.
+    """
+    class_id: int
+    class_name: str
+    bbox: BoundingBox
+    centre: ImagePoint
+    source: str
+    detection_confidence: float | None = None
+    baseline_score: float | None = None
+    validation_score: float | None = None
+
+
+@dataclass(frozen=True)
+class CartesianPose:
+    """World metres and a unit quaternion in PyBullet (x,y,z,w) order."""
+    position: tuple[float, float, float]
+    orientation: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True)
+class PickOutcome:
+    """Consumable execution result; no file logging or experiment metrics."""
+    object_id: int | None
+    class_name: str
+    status: str
+    reason: str
+    destination: str | None = None
+
+
+@dataclass(frozen=True)
+class RunOutcome:
+    status: str
+    reason: str
+    picks: tuple[PickOutcome, ...]
+    observation_count: int
+    remaining_object_ids: tuple[int, ...]
+    rejections: tuple[str, ...] = ()

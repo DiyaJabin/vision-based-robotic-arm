@@ -37,7 +37,7 @@ NEAR_PLANE = 0.01
 FAR_PLANE = 5.0
 
 
-def _camera_matrices(
+def camera_matrices(
     width: int,
     height: int,
 ) -> Tuple[list[float], list[float]]:
@@ -82,7 +82,7 @@ def capture_bgr(
     Returns:
         NumPy array with shape (height, width, 3) in BGR format.
     """
-    view_matrix, projection_matrix = _camera_matrices(width, height)
+    view_matrix, projection_matrix = camera_matrices(width, height)
 
     _, _, rgba_image, _, _ = p.getCameraImage(
         width=width,
@@ -123,7 +123,7 @@ def capture_depth(
     Returns:
         Floating-point NumPy array containing depth values in metres.
     """
-    view_matrix, projection_matrix = _camera_matrices(
+    view_matrix, projection_matrix = camera_matrices(
         width,
         height,
     )
@@ -282,3 +282,28 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def project_world_points(points, width: int = DEFAULT_WIDTH, height: int = DEFAULT_HEIGHT):
+    """Project known world reference points using the configured virtual camera.
+
+    This supports calibration correspondences, not synthetic YOLO annotations.
+    Output is continuous (u,v) pixels with top-left origin. PyBullet/OpenGL
+    matrices are column-major; image v reverses the NDC vertical direction.
+    """
+    if width <= 0 or height <= 0:
+        raise ValueError("Image dimensions must be positive.")
+    world=np.asarray(points,dtype=float)
+    if world.ndim!=2 or world.shape[1]!=3 or not np.isfinite(world).all():
+        raise ValueError("Expected finite N x 3 world points.")
+    view,projection=camera_matrices(width,height)
+    transform=np.asarray(projection).reshape(4,4,order="F") @ np.asarray(view).reshape(4,4,order="F")
+    clip=(transform @ np.column_stack((world,np.ones(len(world)))).T).T
+    if np.any(clip[:,3]<=0):
+        raise ValueError("Reference point is behind the camera.")
+    ndc=clip[:,:3]/clip[:,3,None]
+    return np.column_stack(((ndc[:,0]+1)*width/2,(1-ndc[:,1])*height/2))
+
+
+# Compatibility for existing users of the original private helper.
+_camera_matrices = camera_matrices

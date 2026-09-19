@@ -33,9 +33,10 @@ GRAVITY = -9.81
 TIME_STEP = 1.0 / 240.0
 
 TABLE_POSITION = (0.5, 0.0, 0.0)
-ROBOT_POSITION = (0.0, 0.0, 0.62)
+ROBOT_POSITION = (0.0, 0.0, 0.625)
 
-TABLETOP_Z = 0.65
+# table/table.urdf: collision centre 0.6 m + half thickness 0.025 m.
+TABLETOP_Z = 0.625
 
 OBJECT_SIZE = 0.05
 CYLINDER_RADIUS = 0.025

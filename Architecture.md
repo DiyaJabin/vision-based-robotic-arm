@@ -85,6 +85,8 @@ The system is structured as a sequential perception-to-action pipeline operating
 - **Classical OpenCV Baseline**: HSV color segmentation, thresholding, morphological opening/closing, and contour extraction.
 - **AI-Based YOLOv8n Detector**: Lightweight deep-learning model providing bounding box coordinates, class labels, and confidence scores.
 
+The implemented detector adapter does not assume that pretrained COCO class IDs represent `cube`, `cylinder`, or `box`; project detections are accepted only through supported names or an explicit custom-weight class mapping.
+
 ---
 
 ## Proposed Technical Contribution
@@ -134,6 +136,8 @@ Before generating motion trajectories, the candidate object location is evaluate
 - **Kinematic Reachability**: Checks whether the converted 3D world coordinate lies strictly within the workspace envelope of the robotic arm.
 - **Gripper Clearance**: Verifies that adjacent distractor objects or table boundaries leave sufficient clearance for gripper jaw placement without collision.
 - **Graspability Score**: Ranks candidate objects based on confidence, clearance, and distance to optimal end-effector alignment.
+
+The KUKA iiwa URDF currently has no gripper fingers. The implemented gripper therefore uses a fixed PyBullet constraint only after proximity, orientation, and motion checks. This is a simulation simplification, not a physical gripper model. Clearance and score weights are configurable initial parameters and have not been experimentally optimized.
 
 ---
 
