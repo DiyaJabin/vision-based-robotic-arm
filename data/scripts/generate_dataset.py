@@ -53,8 +53,12 @@ MIN_OBJECT_DISTANCE = 0.10
 # Number of attempts allowed when searching for a non-overlapping position.
 MAX_POSITION_ATTEMPTS = 100
 
-# Number of physics steps before image capture.
-SETTLE_STEPS = 30
+# Initial simulation parameters, not scientifically validated thresholds.
+LINEAR_VELOCITY_THRESHOLD = 0.005  # metres per second
+ANGULAR_VELOCITY_THRESHOLD = 0.05  # radians per second
+SETTLE_CHECK_INTERVAL = 12
+CONSECUTIVE_STABLE_CHECKS = 10
+MAX_SETTLE_STEPS = 2400
 
 
 def object_surface_height(object_type: str) -> float:
@@ -231,10 +235,72 @@ def create_random_scene(
     return metadata
 
 
-def step_simulation(num_steps: int = SETTLE_STEPS) -> None:
-    """Advance the physics simulation for a fixed number of steps."""
-    for _ in range(num_steps):
+class SettlingTimeoutError(RuntimeError):
+    """Target objects did not remain still within the settling budget."""
+
+
+def validate_settling_parameters(
+    linear_velocity_threshold: float,
+    angular_velocity_threshold: float,
+    check_interval: int,
+    consecutive_stable_checks: int,
+    max_settle_steps: int,
+) -> None:
+    """Reject invalid or impossible settling configurations."""
+    for value in (linear_velocity_threshold, angular_velocity_threshold):
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("Velocity thresholds must be finite and positive.")
+    for value in (check_interval, consecutive_stable_checks, max_settle_steps):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError("Settling step/check counts must be positive integers.")
+    if check_interval * consecutive_stable_checks > max_settle_steps:
+        raise ValueError("Settling budget is too small for the stable window.")
+
+
+def wait_for_objects_to_settle(
+    objects: List[Dict[str, object]],
+    linear_velocity_threshold: float = LINEAR_VELOCITY_THRESHOLD,
+    angular_velocity_threshold: float = ANGULAR_VELOCITY_THRESHOLD,
+    check_interval: int = SETTLE_CHECK_INTERVAL,
+    consecutive_stable_checks: int = CONSECUTIVE_STABLE_CHECKS,
+    max_settle_steps: int = MAX_SETTLE_STEPS,
+) -> int:
+    """Return steps used after consecutive low-speed checks of all targets.
+
+    Thresholds are initial simulation parameters in m/s and rad/s. Velocity
+    stability does not itself establish tabletop contact. Raise
+    SettlingTimeoutError if the bounded physics-step budget is exhausted.
+    """
+    validate_settling_parameters(
+        linear_velocity_threshold, angular_velocity_threshold,
+        check_interval, consecutive_stable_checks, max_settle_steps,
+    )
+    if not objects:
+        raise ValueError("At least one target object is required for settling.")
+
+    stable_checks = 0
+    for step in range(1, max_settle_steps + 1):
         p.stepSimulation()
+        if step % check_interval:
+            continue
+
+        all_stable = True
+        for obj in objects:
+            linear, angular = p.getBaseVelocity(obj["object_id"])
+            if not (
+                math.hypot(*linear) < linear_velocity_threshold
+                and math.hypot(*angular) < angular_velocity_threshold
+            ):
+                all_stable = False
+        stable_checks = stable_checks + 1 if all_stable else 0
+        if stable_checks >= consecutive_stable_checks:
+            return step
+
+    raise SettlingTimeoutError(
+        f"Objects did not settle within {max_settle_steps} physics steps "
+        f"({stable_checks}/{consecutive_stable_checks} consecutive stable checks)."
+    )
+
 
 def update_object_poses(objects):
     """Update metadata with the actual poses after physics settling."""
@@ -311,15 +377,29 @@ def generate_dataset(
     seed: int,
     min_objects: int,
     max_objects: int,
+    *,
+    linear_velocity_threshold: float = LINEAR_VELOCITY_THRESHOLD,
+    angular_velocity_threshold: float = ANGULAR_VELOCITY_THRESHOLD,
+    check_interval: int = SETTLE_CHECK_INTERVAL,
+    consecutive_stable_checks: int = CONSECUTIVE_STABLE_CHECKS,
+    max_settle_steps: int = MAX_SETTLE_STEPS,
 ) -> None:
-    """Generate a complete synthetic RGB dataset.
+    """Generate settled frames, skipping timed-out scenes in multi-scene runs.
+
+    A single-scene timeout raises SettlingTimeoutError. Skipped scenes leave
+    frame-number gaps; image_count is the number of scene attempts.
 
     Args:
-        image_count: Number of images to generate.
+        image_count: Number of scenes to attempt.
         output_dir: Dataset output directory.
         seed: Random seed for reproducibility.
         min_objects: Minimum objects per scene.
         max_objects: Maximum objects per scene.
+        linear_velocity_threshold: Initial speed limit in metres per second.
+        angular_velocity_threshold: Initial speed limit in radians per second.
+        check_interval: Physics steps between velocity checks.
+        consecutive_stable_checks: Required consecutive all-target passes.
+        max_settle_steps: Maximum physics steps per scene before timeout.
     """
     if image_count <= 0:
         raise ValueError("image_count must be greater than zero.")
@@ -332,7 +412,13 @@ def generate_dataset(
             "max_objects must be greater than or equal to min_objects."
         )
 
+    validate_settling_parameters(
+        linear_velocity_threshold, angular_velocity_threshold,
+        check_interval, consecutive_stable_checks, max_settle_steps,
+    )
     rng = random.Random(seed)
+    saved_count = 0
+    skipped_count = 0
 
     images_dir = output_dir / "images"
     images_dir.mkdir(
@@ -373,30 +459,24 @@ def generate_dataset(
                 max_objects,
             )
 
-            step_simulation()
-
-            # Update metadata with the actual object poses
-            # after physics settling.
-            for obj in metadata:
-                position, orientation = p.getBasePositionAndOrientation(
-                    obj["object_id"]
+            try:
+                settle_steps = wait_for_objects_to_settle(
+                    metadata,
+                    linear_velocity_threshold=linear_velocity_threshold,
+                    angular_velocity_threshold=angular_velocity_threshold,
+                    check_interval=check_interval,
+                    consecutive_stable_checks=consecutive_stable_checks,
+                    max_settle_steps=max_settle_steps,
                 )
+            except SettlingTimeoutError as error:
+                if image_count == 1:
+                    raise
+                skipped_count += 1
+                print(f"  Skipping frame {frame_index:05d}: {error}")
+                continue
 
-                roll, pitch, yaw = p.getEulerFromQuaternion(
-                    orientation
-                )
-
-                obj["world_position"] = {
-                    "x": float(position[0]),
-                    "y": float(position[1]),
-                    "z": float(position[2]),
-                }
-
-                obj["world_orientation"] = {
-                    "roll": float(roll),
-                    "pitch": float(pitch),
-                    "yaw": float(yaw),
-                }
+            # Record actual settled poses; do not step physics before capture.
+            update_object_poses(metadata)
 
             image_filename = f"frame_{frame_index:05d}.png"
             image_path = images_dir / image_filename
@@ -417,6 +497,8 @@ def generate_dataset(
                 frame_index,
                 output_dir,
             )
+            saved_count += 1
+            print(f"  Settled : {settle_steps} physics steps")
 
             print(
                 f"  Image   : {image_path}"
@@ -433,6 +515,7 @@ def generate_dataset(
             p.disconnect(client_id)
 
     print("\nDataset generation complete.")
+    print(f"Scenes attempted: {image_count}; saved: {saved_count}; skipped: {skipped_count}")
     print(f"Images directory  : {images_dir.resolve()}")
     print(
         f"Metadata directory: "
@@ -453,7 +536,7 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         default=DEFAULT_IMAGE_COUNT,
         help=(
-            f"Number of images to generate "
+            f"Number of scenes to attempt (settling timeouts are skipped) "
             f"(default: {DEFAULT_IMAGE_COUNT})."
         ),
     )
@@ -489,6 +572,29 @@ def parse_arguments() -> argparse.Namespace:
         help="Maximum number of objects per scene.",
     )
 
+    parser.add_argument(
+        "--linear-velocity-threshold", type=float,
+        default=LINEAR_VELOCITY_THRESHOLD,
+        help="Initial settling speed threshold in m/s (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--angular-velocity-threshold", type=float,
+        default=ANGULAR_VELOCITY_THRESHOLD,
+        help="Initial settling speed threshold in rad/s (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--check-interval", type=int, default=SETTLE_CHECK_INTERVAL,
+        help="Physics steps between settling checks (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--consecutive-stable-checks", type=int, default=CONSECUTIVE_STABLE_CHECKS,
+        help="Consecutive all-target stable checks (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--max-settle-steps", type=int, default=MAX_SETTLE_STEPS,
+        help="Maximum settling steps per scene (default: %(default)s).",
+    )
+
     return parser.parse_args()
 
 
@@ -502,6 +608,11 @@ def main() -> None:
         seed=args.seed,
         min_objects=args.min_objects,
         max_objects=args.max_objects,
+        linear_velocity_threshold=args.linear_velocity_threshold,
+        angular_velocity_threshold=args.angular_velocity_threshold,
+        check_interval=args.check_interval,
+        consecutive_stable_checks=args.consecutive_stable_checks,
+        max_settle_steps=args.max_settle_steps,
     )
 
 
