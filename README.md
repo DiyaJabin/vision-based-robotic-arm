@@ -215,6 +215,20 @@ python simulation/scene.py
 
 ---
 
+## Running Experiments
+
+Use the evaluation scripts to log randomized trial data, compare methods, and plot saved results when the PyBullet runtime and model dependencies are available.
+
+```bash
+python experiments/run_trials.py --trials 10
+python experiments/compare_methods.py
+python experiments/plot_results.py
+```
+
+Evaluation scripts depend on runtime availability. If the PyBullet scene, YOLO model, or required runtime dependencies are not available, methods are skipped instead of fabricated, and the script reports `SKIPPED / NOT AVAILABLE`.
+
+---
+
 ## Future Extensions
 
 - Real-world webcam integration for sim-to-real transfer evaluation
