@@ -34,7 +34,9 @@ class PipelineConfig:
     confidence: ConfidenceThresholds = field(default_factory=ConfidenceThresholds)
     validation: ValidationConfig = field(default_factory=ValidationConfig)
     score_weights: ScoreWeights = field(default_factory=ScoreWeights)
-    gripper: GripperConfig = field(default_factory=GripperConfig)
+    # The KUKA flange collision geometry extends below the link frame. Keep a
+    # larger runtime clearance before creating the simulation-only constraint.
+    gripper: GripperConfig = field(default_factory=lambda: GripperConfig(standoff=0.050))
     loop: LoopConfig = field(default_factory=LoopConfig)
     association_distance: float = 0.035
     lift_height: float = 0.16
@@ -108,8 +110,8 @@ class SimulationAdapter:
                   (scene.WORKSPACE_X[1],scene.WORKSPACE_Y[1]),
                   (scene.WORKSPACE_X[0],scene.WORKSPACE_Y[1]))
         for name in CLASS_IDS:
-            top=self.table.surface_z+object_dimensions(name)[2]
-            image=camera.project_world_points([(x,y,top) for x,y in world_xy])
+            centre_z=self.table.surface_z+object_dimensions(name)[2]/2
+            image=camera.project_world_points([(x,y,centre_z) for x,y in world_xy])
             self.homographies[name]=compute_homography(image,world_xy)
 
     def remaining_ids(self):
@@ -121,7 +123,10 @@ class SimulationAdapter:
     def prepare_observation(self):
         if self.gripper.object_id is not None:
             raise RuntimeError("Cannot reobserve while holding an unplaced object.")
-        self.controller.move_home()
+        # The normal bent-arm home pose occludes the right side of this fixed
+        # overhead camera. Use the neutral observation pose so all tabletop
+        # targets remain visible while retaining controller collision checks.
+        self.controller.move_to_joint_positions((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
         from data.scripts.generate_dataset import wait_for_objects_to_settle
         if self.targets:
             wait_for_objects_to_settle([{"object_id":body} for body in self.targets])
@@ -133,7 +138,7 @@ class SimulationAdapter:
             footprints.append(Footprint(body,(lo[0]+hi[0])/2,(lo[1]+hi[1])/2,(hi[0]-lo[0])/2,(hi[1]-lo[1])/2))
         return footprints
 
-    def _associate(self,class_name,xy,used):
+    def _associate(self,class_name,xy,used,image_point=None):
         matches=[]
         for body in self.remaining_ids():
             if self.targets[body]!=class_name or body in used:
@@ -143,6 +148,22 @@ class SimulationAdapter:
             if distance<=self.config.association_distance:
                 matches.append((distance,body))
         matches.sort()
+        if not matches and image_point is not None:
+            # The homography maps a parallel object-top plane. Perspective
+            # shifts the contour centroid slightly toward the camera, so use
+            # the camera projection only to associate the known simulated body
+            # while retaining the image-derived XY for the grasp pose.
+            projected=[]
+            for body in self.remaining_ids():
+                if self.targets[body]!=class_name or body in used:
+                    continue
+                position,_=self.p.getBasePositionAndOrientation(body,physicsClientId=self.client_id)
+                top=position[2]+object_dimensions(class_name)[2]/2
+                uv=self.camera.project_world_points([(position[0],position[1],top)])[0]
+                projected.append((math.dist(image_point,(uv[0],uv[1])),body))
+            projected.sort()
+            if projected and projected[0][0] <= 30.0:
+                return projected[0][1]
         if not matches:
             raise ValueError("no_simulated_body_near_visual_centre")
         if len(matches)>1 and matches[1][0]-matches[0][0]<0.005:
@@ -179,7 +200,7 @@ class SimulationAdapter:
                 pose=estimate_pose(frame,observation.bbox,name)
                 matrix=self.homographies[name]
                 xy=pixel_to_world(matrix,pose.centre.u,pose.centre.v)
-                body=self._associate(name,xy,used)
+                body=self._associate(name,xy,used,(pose.centre.u,pose.centre.v))
                 # A raised/fallen/tilted object violates the known upright top-plane assumption.
                 position,orientation=self.p.getBasePositionAndOrientation(body,physicsClientId=self.client_id)
                 dimensions=object_dimensions(name)
@@ -202,7 +223,7 @@ class SimulationAdapter:
                 target=Footprint(body,*xy,actual.half_x,actual.half_y)
                 clearance=evaluate_clearance(target,footprints,self.table,self.clearance)
                 reachable=evaluate_reachability(self.kin,(pre,grasp,pre_place,place),self.table,
-                    obstacles=self.obstacles)
+                    obstacles=self.obstacles,allowed_bodies=(body,))
                 candidate=GraspCandidate(body,observation,grasp,pre,target,reachable,clearance)
                 candidates.append(candidate)
                 used.add(body)
@@ -220,8 +241,8 @@ class SimulationAdapter:
         placement=self.destinations.placement_for(name,object_dimensions(name))
         try:
             self.gripper.open_gripper()
-            self.controller.move_end_effector(candidate.pre_grasp_pose,linear=False)
-            self.controller.move_end_effector(candidate.grasp_pose)
+            self.controller.move_end_effector(candidate.pre_grasp_pose,allowed_bodies=(body,),linear=False)
+            self.controller.move_end_effector(candidate.grasp_pose,allowed_bodies=(body,))
             self.gripper.close_gripper(body)
             self.controller.payload_id=body
             self.controller.move_end_effector(candidate.pre_grasp_pose,allowed_bodies=(body,))
@@ -232,7 +253,7 @@ class SimulationAdapter:
             self.controller.execute_waypoints((over_source,over_destination,place),allowed_bodies=(body,))
             self.gripper.release_object()
             self.controller.payload_id=None
-            self.controller.move_end_effector(over_destination)
+            self.controller.move_end_effector(over_destination,allowed_bodies=(body,))
             wait_for_objects_to_settle([{"object_id":body}])
             lo,hi=self.p.getAABB(body,physicsClientId=self.client_id)
             surface=self.destinations.surfaces[placement.bin_name]
