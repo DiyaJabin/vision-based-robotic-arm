@@ -54,13 +54,18 @@ FAILURE_CATEGORY_PATTERNS = {
         "ik_failure",
         "inverse_kinematics_failed",
     ),
+    "timeout": (
+        "timeout",
+        "timed_out",
+        "observation_limit",
+        "pick_attempt_limit",
+    ),
     "grasp failure": (
         "grasp failure",
         "grasp_failed",
         "grasp_failure",
         "close_gripper_failure",
-        "motion_timeout",
-        "timeout",
+        "motion_failure",
     ),
     "placement failure": (
         "placement failure",
@@ -68,12 +73,6 @@ FAILURE_CATEGORY_PATTERNS = {
         "placement_failure",
         "placement_not_supported_in_destination",
         "destination_contact_verified",
-    ),
-    "timeout": (
-        "timeout",
-        "timed_out",
-        "observation_limit",
-        "pick_attempt_limit",
     ),
     "runtime unavailable": (
         "runtime unavailable",
@@ -87,7 +86,7 @@ FAILURE_CATEGORY_PATTERNS = {
     ),
 }
 
-SUCCESS_MARKERS = ("destination_contact_verified", "all_objects_placed", "verified")
+SUCCESS_MARKERS = ("destination_contact_verified", "all_objects_placed")
 
 
 def classify_failure(reason: object) -> str:
@@ -97,7 +96,7 @@ def classify_failure(reason: object) -> str:
     text = str(reason).strip().lower()
     if not text:
         return "unknown"
-    if any(marker in text for marker in SUCCESS_MARKERS):
+    if text in SUCCESS_MARKERS or text.endswith(":destination_contact_verified"):
         return "success"
     for label, patterns in FAILURE_CATEGORY_PATTERNS.items():
         if any(pattern in text for pattern in patterns):
@@ -119,8 +118,6 @@ def group_failure_reasons(data) -> dict[str, int]:
         if not isinstance(row, dict):
             continue
         reason = row.get("failure_reason")
-        if row.get("grasp_success") in (1, True, "1", "true"):
-            continue
         if row.get("placement_success") in (1, True, "1", "true"):
             continue
         category = classify_failure(reason)

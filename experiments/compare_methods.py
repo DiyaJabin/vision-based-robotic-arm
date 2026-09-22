@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from experiments.failure_analysis import classify_failure
 
 
 def summarize_method_results(frame: pd.DataFrame) -> dict[str, object]:
@@ -41,23 +42,23 @@ def summarize_method_results(frame: pd.DataFrame) -> dict[str, object]:
         valid = subset["valid_detections"].fillna(0).astype(float)
         detections = subset["objects_detected"].fillna(0).astype(float)
         detection_count = float(detections.sum()) if not detections.empty else 0.0
-        valid_rate = float(valid.sum() / max(total, 1)) if total else 0.0
+        valid_rate = float(valid.sum() / max(detections.sum(), 1.0)) if total else 0.0
         attempt_rate = float(attempts / max(total, 1)) if total else 0.0
         success_rate = float(successful / max(total, 1)) if total else 0.0
         placement_rate = float(placement_success / max(total, 1)) if total else 0.0
         avg_latency = float(subset["perception_latency_ms"].fillna(0.0).mean()) if total else 0.0
-        if avg_latency == 0.0 and total:
-            avg_latency = float(subset["total_execution_time_s"].fillna(0.0).mean()) if total else 0.0
         avg_total_time = float(subset["total_execution_time_s"].fillna(0.0).mean()) if total else 0.0
         retries = subset["retry_count"].fillna(0).astype(float).sum()
         retry_rate = float(retries / max(total, 1)) if total else 0.0
-        failure_counts = int((subset["failure_reason"].notna() & subset["failure_reason"].astype(str).ne("unknown")).sum()) if total else 0
+        failure_counts = sum(classify_failure(reason) not in {"success", "unknown", "runtime unavailable"}
+                             for reason in subset["failure_reason"].tolist()) if total else 0
         summary[method] = {
             "total_trials": total,
             "detection_count": detection_count,
             "valid_detection_rate": valid_rate,
             "grasp_attempt_rate": attempt_rate,
             "grasp_success_rate": success_rate,
+            "success_rate": placement_rate,
             "placement_success_rate": placement_rate,
             "average_perception_latency_ms": avg_latency,
             "average_total_execution_time_s": avg_total_time,
@@ -75,6 +76,7 @@ def compare_methods_from_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
             "valid_detection_rate",
             "grasp_attempt_rate",
             "grasp_success_rate",
+            "success_rate",
             "placement_success_rate",
             "average_perception_latency_ms",
             "average_total_execution_time_s",
@@ -105,16 +107,16 @@ def compare_methods_from_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
         subset = frame[frame["method"] == method].copy()
         total = len(subset)
         detection_count = int(subset["objects_detected"].fillna(0).astype(float).sum())
-        valid_rate = float(subset["valid_detections"].fillna(0).astype(float).sum() / max(total, 1))
+        detections = subset["objects_detected"].fillna(0).astype(float)
+        valid_rate = float(subset["valid_detections"].fillna(0).astype(float).sum() / max(detections.sum(), 1.0))
         attempt_rate = float(subset["grasp_attempted"].fillna(False).astype(bool).sum() / max(total, 1))
-        success_rate = float(subset["grasp_success"].fillna(False).astype(bool).sum() / max(total, 1))
+        success_rate = float(subset["placement_success"].fillna(False).astype(bool).sum() / max(total, 1))
         placement_rate = float(subset["placement_success"].fillna(False).astype(bool).sum() / max(total, 1))
         avg_latency = float(subset["perception_latency_ms"].fillna(0.0).mean()) if total else 0.0
-        if avg_latency == 0.0 and total:
-            avg_latency = float(subset["total_execution_time_s"].fillna(0.0).mean()) if total else 0.0
         avg_total_time = float(subset["total_execution_time_s"].fillna(0.0).mean()) if total else 0.0
         retry_rate = float(subset["retry_count"].fillna(0).astype(float).sum() / max(total, 1))
-        failure_counts = int(subset["failure_reason"].fillna("unknown").astype(str).ne("unknown").sum())
+        failure_counts = sum(classify_failure(reason) not in {"success", "unknown", "runtime unavailable"}
+                             for reason in subset["failure_reason"].tolist())
         data.append({
             "method": method,
             "total_trials": total,
@@ -122,6 +124,7 @@ def compare_methods_from_dataframe(frame: pd.DataFrame) -> pd.DataFrame:
             "valid_detection_rate": valid_rate,
             "grasp_attempt_rate": attempt_rate,
             "grasp_success_rate": success_rate,
+            "success_rate": placement_rate,
             "success_rate": success_rate,
             "placement_success_rate": placement_rate,
             "average_perception_latency_ms": avg_latency,
@@ -137,3 +140,16 @@ def compare_methods(csv_path: str | Path | None = None) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return compare_methods_from_dataframe(pd.read_csv(path))
+
+
+def main() -> int:
+    frame = compare_methods()
+    if frame.empty:
+        print("No experiment CSV results found in experiments/results/. No comparison generated.")
+        return 0
+    print(frame.to_string())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

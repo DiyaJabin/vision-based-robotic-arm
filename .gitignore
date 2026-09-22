@@ -63,8 +63,7 @@ models/*.pt
 
 # YOLO Runs & Experiment Outputs
 runs/
-experiments/results/*.csv
-experiments/results/*.png
+experiments/results/
 
 # Temporary Files & Logs
 *.log

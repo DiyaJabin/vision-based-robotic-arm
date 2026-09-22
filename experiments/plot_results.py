@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import matplotlib
@@ -18,11 +17,16 @@ def plot_results(frame: pd.DataFrame, output_dir: str | Path | None = None) -> l
     output_path.mkdir(parents=True, exist_ok=True)
 
     generated: list[Path] = []
+    if "method" not in frame.columns:
+        return []
+    for column, default in (("placement_success", False), ("perception_latency_ms", 0.0), ("retry_count", 0)):
+        if column not in frame.columns:
+            frame[column] = default
     methods = sorted(frame["method"].dropna().unique().tolist())
 
     if methods:
         summary = frame.groupby("method", dropna=False).agg(
-            success_rate=("grasp_success", lambda s: float(s.fillna(0).astype(bool).mean()) if len(s) else 0.0),
+            success_rate=("placement_success", lambda s: float(s.fillna(0).astype(bool).mean()) if len(s) else 0.0),
             avg_latency=("perception_latency_ms", lambda s: float(s.fillna(0.0).mean()) if len(s) else 0.0),
             placement_rate=("placement_success", lambda s: float(s.fillna(0).astype(bool).mean()) if len(s) else 0.0),
             retry_count=("retry_count", lambda s: float(s.fillna(0).sum()) if len(s) else 0.0),

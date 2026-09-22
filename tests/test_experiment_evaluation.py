@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 
 from experiments.compare_methods import compare_methods_from_dataframe, summarize_method_results
-from experiments.failure_analysis import group_failure_reasons
+from experiments.failure_analysis import classify_failure, group_failure_reasons
 from experiments.logger import TrialLogger, aggregate_trials, load_trial_results
 from experiments.run_trials import TrialConfig, describe_runtime_status
 
@@ -54,8 +54,8 @@ class ExperimentLoggerTests(unittest.TestCase):
         ]
         summary = aggregate_trials(rows)
         self.assertEqual(summary["total_trials"], 4)
-        self.assertAlmostEqual(summary["success_rate"], 0.5, places=3)
-        self.assertAlmostEqual(summary["mean_latency"], 2.25, places=3)
+        self.assertAlmostEqual(summary["success_rate"], 0.25, places=3)
+        self.assertAlmostEqual(summary["mean_latency_ms"], 0.0, places=3)
         self.assertEqual(summary["failure_category_counts"]["low confidence"], 1)
         self.assertEqual(summary["failure_category_counts"]["runtime unavailable"], 1)
 
@@ -89,6 +89,17 @@ class ExperimentLoggerTests(unittest.TestCase):
     def test_load_trial_results_handles_missing_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.assertEqual(load_trial_results(os.path.join(tmpdir, "missing.csv")), [])
+
+    def test_failure_categories_preserve_placement_and_timeout_semantics(self):
+        self.assertEqual(classify_failure("motion_timeout"), "timeout")
+        grouped = group_failure_reasons([
+            {"grasp_success": True, "placement_success": False, "failure_reason": "placement_failure"},
+            {"grasp_success": False, "placement_success": False, "failure_reason": "motion_timeout"},
+            {"grasp_success": True, "placement_success": True, "failure_reason": "destination_contact_verified"},
+        ])
+        self.assertEqual(grouped["placement failure"], 1)
+        self.assertEqual(grouped["timeout"], 1)
+        self.assertNotIn("success", grouped)
 
 
 if __name__ == "__main__":

@@ -220,12 +220,12 @@ python simulation/scene.py
 Use the evaluation scripts to log randomized trial data, compare methods, and plot saved results when the PyBullet runtime and model dependencies are available.
 
 ```bash
-python experiments/run_trials.py --trials 10
-python experiments/compare_methods.py
-python experiments/plot_results.py
+python -m experiments.run_trials --trials 10
+python -m experiments.compare_methods
+python -m experiments.plot_results
 ```
 
-Evaluation scripts depend on runtime availability. If the PyBullet scene, YOLO model, or required runtime dependencies are not available, methods are skipped instead of fabricated, and the script reports `SKIPPED / NOT AVAILABLE`.
+Evaluation scripts depend on runtime availability. OpenCV trials use the implemented baseline pipeline; hybrid trials use the implemented confidence-gated pipeline. YOLO-only trials are explicitly skipped because the core pipeline does not expose a YOLO-only mode. If PyBullet or another required dependency is unavailable, no trial rows are written and the script reports `SKIPPED / NOT AVAILABLE`. Results are experimental logs, not measured claims about physical performance.
 
 ---
 
