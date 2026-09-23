@@ -26,9 +26,7 @@ Simulation-first visual perception and autonomous pick-and-place with a KUKA iiw
 
 ## Demo Video
 
-The local demo video is [docs/media/robot_demo.mp4](docs/media/robot_demo.mp4) (approximately 112 MB). Because this exceeds the normal GitHub file limit, upload it as a GitHub Release asset or another hosted demo before publishing a permanent link.
-
-The video should show scene initialization, detection, grasp, lift, destination transfer, release, and placement verification.
+https://github.com/user-attachments/assets/0259cda2-13be-4e21-aad3-eadf54be0d34
 
 ## Overview
 
