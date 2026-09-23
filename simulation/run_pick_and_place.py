@@ -45,8 +45,8 @@ class PipelineConfig:
     realtime: bool = False
 
     def __post_init__(self):
-        if self.mode not in ("baseline","hybrid"):
-            raise ValueError("Mode must be baseline or hybrid.")
+        if self.mode not in ("baseline", "yolo", "hybrid"):
+            raise ValueError("Mode must be baseline, yolo, or hybrid.")
         for value in (self.association_distance,self.lift_height,self.clearance_margin,self.baseline_min_area):
             if not math.isfinite(value) or value<=0:
                 raise ValueError("Pipeline dimensions/thresholds must be positive.")
@@ -100,7 +100,7 @@ class SimulationAdapter:
         lo,hi=p.getAABB(scene_data["robot"],self.kin.end_effector_link,physicsClientId=client_id)
         self.clearance=ClearanceConfig(math.dist(lo,hi)/2,self.config.clearance_margin)
         self.detector=detector
-        if self.config.mode=="hybrid" and detector is None:
+        if self.config.mode in ("yolo", "hybrid") and detector is None:
             self.detector=YoloDetector(self.config.weights,custom_weights=self.config.custom_weights)
         self.validator=HybridValidator(self.config.confidence,self.config.validation)
         self.homographies={}
@@ -184,13 +184,17 @@ class SimulationAdapter:
                     "opencv",baseline_score=item["baseline_score"]))
         else:
             for detection in self.detector.detect(frame):
-                validation=self.validator.validate(frame,detection)
-                if not validation.accepted:
-                    rejected.append(f"{detection.class_name}:{validation.reason}")
+                if self.config.mode == "yolo":
+                    observations.append(ObjectObservation(detection.class_id,detection.class_name,
+                        detection.bbox,detection.centre,"yolo",detection_confidence=detection.confidence))
                     continue
-                observations.append(ObjectObservation(detection.class_id,detection.class_name,detection.bbox,
-                    detection.centre,"yolo",detection_confidence=detection.confidence,
-                    validation_score=validation.validation_score))
+                validation=self.validator.validate(frame,detection)
+                if validation.accepted:
+                    observations.append(ObjectObservation(detection.class_id,detection.class_name,detection.bbox,
+                        detection.centre,"yolo",detection_confidence=detection.confidence,
+                        validation_score=validation.validation_score))
+                else:
+                    rejected.append(f"{detection.class_name}:{validation.reason}")
         footprints=self._footprints()
         candidates=[]
         used=set()
@@ -277,7 +281,7 @@ def run_scene(scene_data,targets,config: PipelineConfig | None = None,*,client_i
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode",choices=("baseline","hybrid"),default="baseline")
+    parser.add_argument("--mode",choices=("baseline","yolo","hybrid"),default="baseline")
     parser.add_argument("--weights",default="yolov8n.pt")
     parser.add_argument("--custom-weights")
     parser.add_argument("--direct",action="store_true")

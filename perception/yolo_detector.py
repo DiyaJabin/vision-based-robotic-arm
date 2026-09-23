@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 import math
+import os
 
 from core.config import CLASS_IDS
 from core.contracts import BoundingBox, DetectionResult, ImagePoint
@@ -57,6 +58,11 @@ class YoloDetector:
             weights = str(path)
         if model is None:
             try:
+                # Keep Ultralytics settings/cache inside the project when the
+                # Windows profile is read-only or unavailable.
+                config_dir = Path(__file__).resolve().parents[1] / "runs" / "ultralytics_config"
+                os.environ.setdefault("YOLO_CONFIG_DIR", str(config_dir))
+                config_dir.mkdir(parents=True, exist_ok=True)
                 from ultralytics import YOLO
                 model = YOLO(weights, task="detect")
             except Exception as error:
