@@ -12,7 +12,7 @@ The current scene and calibration pipeline assume an overhead RGB camera view wi
 
 ## RGB-only perception
 
-The detection and validation pipeline relies on RGB image observations and color/contour heuristics. Depth information, segmentation masks, or multimodal sensing are not yet integrated into the documented perception flow.
+The runtime detection and validation pipeline relies on RGB image observations and color/contour heuristics. PyBullet segmentation masks are used for synthetic YOLO label generation and are not supplied to the runtime detector.
 
 ## Limited object classes
 
@@ -24,7 +24,7 @@ The image-generation utilities and configuration files support synthetic object 
 
 ## Experimental thresholds
 
-The confidence thresholds and validation settings in `core/config.py` and `perception/hybrid_validator.py` are intentionally documented as configurable initial heuristics rather than scientifically validated operating parameters.
+The confidence thresholds remain `0.50` for the medium band and `0.80` for the high band. They are configurable heuristics rather than scientifically calibrated operating parameters.
 
 ## Graspability assumptions
 
@@ -32,7 +32,7 @@ The graspability and clearance logic uses conservative, top-down, simple-grasp a
 
 ## Runtime verification status
 
-PyBullet-dependent runtime verification, motion execution, collision checks, and full end-to-end pick-and-place execution remain pending in the dedicated Windows environment. The project includes dependency-independent tests, but not a full physics validation pass.
+The baseline and YOLO-only pipelines have completed simulated end-to-end runs in the Windows PyBullet environment. The current trained model does not pass the configured hybrid confidence gate on that runtime scene, so hybrid completion remains unverified. The project still has no physical-robot validation.
 
 ## No physical hardware validation yet
 
