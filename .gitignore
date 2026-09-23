@@ -51,6 +51,8 @@ venv.bak/
 data/raw/
 data/processed/
 data/yolo/
+data/yolo_dataset/
+data/yolo_dataset_*/
 *.zip
 *.tar.gz
 
@@ -64,6 +66,7 @@ models/*.pt
 # YOLO Runs & Experiment Outputs
 runs/
 experiments/results/
+experiments/final_results/
 
 # Temporary Files & Logs
 *.log

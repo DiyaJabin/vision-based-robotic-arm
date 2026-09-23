@@ -110,6 +110,31 @@ def capture_bgr(
     return bgr_array
 
 
+def capture_bgr_and_segmentation(
+    width: int = DEFAULT_WIDTH,
+    height: int = DEFAULT_HEIGHT,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Capture BGR color and PyBullet object/link segmentation buffers.
+
+    PyBullet encodes the visible body ID in the low 24 bits and the link index
+    plus one in the upper byte. Background pixels are negative. Consumers
+    should mask by body ID and never treat table, robot, or destination bodies
+    as target labels unless explicitly requested.
+    """
+    view_matrix, projection_matrix = camera_matrices(width, height)
+    _, _, rgba_image, _, segmentation = p.getCameraImage(
+        width=width,
+        height=height,
+        viewMatrix=view_matrix,
+        projectionMatrix=projection_matrix,
+        renderer=p.ER_BULLET_HARDWARE_OPENGL,
+    )
+    rgba_array = np.asarray(rgba_image, dtype=np.uint8).reshape((height, width, 4))
+    bgr_array = cv2.cvtColor(cv2.cvtColor(rgba_array, cv2.COLOR_RGBA2RGB), cv2.COLOR_RGB2BGR)
+    segmentation_array = np.asarray(segmentation, dtype=np.int32).reshape((height, width))
+    return bgr_array, segmentation_array
+
+
 def capture_depth(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
