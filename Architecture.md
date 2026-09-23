@@ -87,6 +87,8 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 The implemented detector adapter does not assume that pretrained COCO class IDs represent `cube`, `cylinder`, or `box`; project detections are accepted only through supported names or an explicit custom-weight class mapping.
 
+The current custom model is trained from 90 synthetic 640 x 480 images with segmentation-derived labels. Baseline and YOLO-only simulated runs complete all three placements. Hybrid confidence gates remain `0.80` high and `0.50` medium; the current runtime scene produces only low-band detections, so hybrid safely reobserves instead of lowering the thresholds.
+
 ---
 
 ## Proposed Technical Contribution

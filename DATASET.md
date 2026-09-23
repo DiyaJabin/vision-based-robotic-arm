@@ -1,12 +1,12 @@
 # Dataset Strategy & Specification
 
-This document details the planned dataset generation strategy, directory layout, label specification, and quality control pipeline for training and evaluating object detection models in the **Vision-Based Robotic Arm** project.
+This document details the generated dataset strategy, directory layout, label specification, and quality control pipeline for training and evaluating object detection models in the **Vision-Based Robotic Arm** project.
 
 ---
 
 ## Dataset Generation Overview
 
-To train YOLOv8n effectively for tabletop pick-and-place, synthetic image data will be generated directly within PyBullet. This approach enables rapid generation of perfectly annotated ground truth bounding boxes and segmentations without manual labeling effort.
+The final YOLOv8n training data was generated directly within PyBullet at 640 x 480 resolution. This approach provides segmentation-derived ground-truth boxes without manual labeling.
 
 ### Object Classes
 
@@ -24,20 +24,21 @@ To promote robust object detection and prevent overfitting to static simulation 
 
 - **Position Randomization**: Object positions \((X, Y)\) randomized across tabletop workspace coordinates.
 - **Rotation Randomization**: Yaw rotation angles randomized between \(0^\circ\) and \(360^\circ\).
-- **Lighting Variation**: Light source position, intensity, and ambient color varied per frame.
-- **Partial Occlusion**: Overlapping placement of target and distractor objects.
-- **Distractor Objects**: Unlabeled background objects (spheres, irregular shapes) introduced to test detection specificity.
+- **Rotation Randomization**: Target yaw angles are randomized while scenes settle physically before capture.
+- **Object Combinations**: Each scene contains a randomized supported-object combination and count.
+- **Visibility Filtering**: Labels are emitted only when target pixels are visible in the segmentation buffer.
 
 ---
 
 ## Dataset Split & Directory Structure
 
 The dataset uses a standard **70% Train / 15% Validation / 15% Test** split.
+The current generated dataset contains 90 images: 62 train, 13 validation, and 15 test. Its class-instance totals are cube 62, cylinder 61, and box 70.
 
 ### YOLO Directory Layout
 
 ```text
-data/yolo/
+data/yolo_dataset/
 ├── dataset.yaml
 ├── images/
 │   ├── train/       # 70% of generated synthetic frames
@@ -53,7 +54,7 @@ data/yolo/
 
 ## YOLO Annotation Format
 
-Each image is accompanied by a `.txt` label file sharing the same base filename. Each line defines a single bounding box normalized relative to image dimensions \([0.0, 1.0]\):
+The implemented builder obtains visible pixels from PyBullet's segmentation buffer and masks by known target body IDs. Robot links, table geometry, destination pads, and background pixels are excluded. Each image is accompanied by a `.txt` label file sharing the same base filename. Each line defines a single bounding box normalized relative to image dimensions \([0.0, 1.0]\):
 
 ```text
 <class_id> <x_center> <y_center> <width> <height>
@@ -75,7 +76,7 @@ Where:
 ### Dataset YAML Specification (`dataset.yaml`)
 
 ```yaml
-path: ../data/yolo
+path: data/yolo_dataset
 train: images/train
 val: images/val
 test: images/test
@@ -95,7 +96,7 @@ Before training, automated validation scripts enforce dataset integrity:
 1. **Empty Label Verification**: Ensures images without objects either have valid empty label files or are accounted for as negative samples.
 2. **Coordinate Bounding**: Confirms all normalized coordinates fall strictly within \([0.0, 1.0]\).
 3. **Resolution Consistency**: Verifies uniform image resolution (e.g., \(640 \times 480\)).
-4. **Class Balance Audit**: Monitors class distribution to avoid training skew toward any single object type.
+4. **Class Balance Audit**: Reports class distribution for the generated split.
 
 ---
 

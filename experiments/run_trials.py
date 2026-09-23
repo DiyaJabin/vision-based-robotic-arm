@@ -19,6 +19,8 @@ class TrialConfig:
     method: str = "hybrid"
     randomize_rotation: bool = True
     output_dir: str | Path = "experiments/results"
+    weights: str = "yolov8n.pt"
+    custom_weights: str | Path | None = None
 
     def __post_init__(self):
         if self.trials <= 0:
@@ -59,10 +61,6 @@ def run_trials(config: TrialConfig | None = None) -> list[dict]:
         print(f"Method {cfg.method}: {describe_runtime_status(missing_runtime=True)}")
         return []
 
-    if cfg.method == "yolo":
-        print("Method yolo: SKIPPED / NOT AVAILABLE (core pipeline has no YOLO-only mode)")
-        return []
-
     import pybullet as p
     from experiments.logger import TrialLogger
     from core.config import CLASS_IDS
@@ -71,7 +69,7 @@ def run_trials(config: TrialConfig | None = None) -> list[dict]:
 
     logger = TrialLogger(cfg.output_dir)
     rows = []
-    mode = "baseline" if cfg.method == "opencv" else "hybrid"
+    mode = cfg.method if cfg.method in {"yolo", "hybrid"} else "baseline"
     for idx in range(cfg.trials):
         client = scene.connect_simulation(use_gui=False)
         try:
@@ -89,7 +87,8 @@ def run_trials(config: TrialConfig | None = None) -> list[dict]:
                 z = scene.TABLETOP_Z + dimensions[name] / 2.0
                 p.resetBasePositionAndOrientation(body, (x, y, z), p.getQuaternionFromEuler((0, 0, yaw)))
             started = time.perf_counter()
-            result = run_scene(data, targets, PipelineConfig(mode=mode), client_id=client)
+            result = run_scene(data, targets, PipelineConfig(mode=mode, weights=cfg.weights,
+                custom_weights=cfg.custom_weights), client_id=client)
             elapsed_s = time.perf_counter() - started
             placed = [pick for pick in result.picks if pick.status == "placed"]
             row = {
@@ -121,6 +120,9 @@ def main():
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--method", choices=("opencv", "yolo", "hybrid"), default="hybrid")
     parser.add_argument("--no-randomize-rotation", action="store_false", dest="randomize_rotation")
+    parser.add_argument("--weights", default="yolov8n.pt")
+    parser.add_argument("--custom-weights")
+    parser.add_argument("--output-dir", default="experiments/results")
     parser.set_defaults(randomize_rotation=True)
     args = parser.parse_args()
 
@@ -129,6 +131,9 @@ def main():
         seed=args.seed,
         method=args.method,
         randomize_rotation=args.randomize_rotation,
+        weights=args.weights,
+        custom_weights=args.custom_weights,
+        output_dir=args.output_dir,
     )
     rows = run_trials(config)
     if not rows:

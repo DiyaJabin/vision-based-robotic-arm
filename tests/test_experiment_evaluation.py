@@ -8,6 +8,7 @@ from experiments.compare_methods import compare_methods_from_dataframe, summariz
 from experiments.failure_analysis import classify_failure, group_failure_reasons
 from experiments.logger import TrialLogger, aggregate_trials, load_trial_results
 from experiments.run_trials import TrialConfig, describe_runtime_status
+from experiments.plot_results import plot_results
 
 
 class ExperimentLoggerTests(unittest.TestCase):
@@ -100,6 +101,20 @@ class ExperimentLoggerTests(unittest.TestCase):
         self.assertEqual(grouped["placement failure"], 1)
         self.assertEqual(grouped["timeout"], 1)
         self.assertNotIn("success", grouped)
+
+    def test_plots_use_grasp_success_and_execution_time(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            frame = pd.DataFrame([
+                {"method": "opencv", "grasp_success": "True", "total_execution_time_s": 3.24},
+                {"method": "opencv", "grasp_success": "False", "total_execution_time_s": 3.24},
+                {"method": "yolo", "grasp_success": "True", "total_execution_time_s": 5.61},
+                {"method": "hybrid", "grasp_success": "False", "total_execution_time_s": 4.03},
+            ])
+            plots = plot_results(frame, tmpdir)
+            self.assertEqual([path.name for path in plots], [
+                "grasp_success_rate_by_method.png", "mean_execution_time_by_method.png"
+            ])
+            self.assertTrue(all(path.exists() for path in plots))
 
 
 if __name__ == "__main__":
