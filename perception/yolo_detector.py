@@ -70,6 +70,13 @@ class YoloDetector:
         self.model = model
 
     def detect_generic(self, image: np.ndarray) -> list[GenericDetection]:
+        """Run Ultralytics on a BGR uint8 frame and preserve native detections.
+
+        Ultralytics performs its own resize, colour conversion, normalization,
+        and tensor preparation. Keeping that preprocessing inside the adapter
+        makes runtime inference use the same implementation as evaluation.
+        Returned boxes remain in the original image's pixel coordinate system.
+        """
         check_bgr(image)
         import numpy as np
         try:
@@ -112,4 +119,5 @@ class YoloDetector:
         return output
 
     def detect(self, image: np.ndarray) -> list[DetectionResult]:
+        """Return only detections whose mapped names are project classes."""
         return self.map_project_detections(self.detect_generic(image))

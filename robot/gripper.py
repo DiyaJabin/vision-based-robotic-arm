@@ -48,6 +48,11 @@ class ConstraintGripper:
             self.attach_object(object_id)
 
     def attach_object(self, object_id: int):
+        """Attach a nearby dynamic body only after proximity and motion checks.
+
+        The fixed constraint is a simulator convenience; it is not a model of
+        physical finger contact or force closure.
+        """
         if not self.closed:
             raise GraspError("gripper_is_open")
         if self.constraint_id is not None:

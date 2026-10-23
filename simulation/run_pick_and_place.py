@@ -126,6 +126,8 @@ class SimulationAdapter:
         # The normal bent-arm home pose occludes the right side of this fixed
         # overhead camera. Use the neutral observation pose so all tabletop
         # targets remain visible while retaining controller collision checks.
+        # Observation stage: use radians and a neutral seven-joint pose so the
+        # fixed overhead camera can see the tabletop targets consistently.
         self.controller.move_to_joint_positions((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
         from data.scripts.generate_dataset import wait_for_objects_to_settle
         if self.targets:
@@ -173,6 +175,8 @@ class SimulationAdapter:
     def observe_and_rank(self):
         from perception.baseline_hsv import detect_objects
         from robot.kinematics import downward_pose
+        # Perception stages: capture RGB, produce candidates, validate them,
+        # estimate image pose, and transform pixel centres into tabletop metres.
         frame=self.camera.capture_bgr()
         observations=[]
         rejected=[]
@@ -228,6 +232,8 @@ class SimulationAdapter:
                 clearance=evaluate_clearance(target,footprints,self.table,self.clearance)
                 reachable=evaluate_reachability(self.kin,(pre,grasp,pre_place,place),self.table,
                     obstacles=self.obstacles,allowed_bodies=(body,))
+                # Planning stages: reachability and clearance are safety gates;
+                # only feasible candidates are useful to the ranking function.
                 candidate=GraspCandidate(body,observation,grasp,pre,target,reachable,clearance)
                 candidates.append(candidate)
                 used.add(body)
@@ -238,12 +244,15 @@ class SimulationAdapter:
         return rank_candidates(candidates,self.config.score_weights),rejected
 
     def execute(self,candidate):
+        """Run the guarded approach, grasp, lift, transfer, release, and verify stages."""
         from robot.controller import MotionError
         from robot.gripper import GraspError
         from data.scripts.generate_dataset import wait_for_objects_to_settle
         body,name=candidate.object_id,candidate.observation.class_name
         placement=self.destinations.placement_for(name,object_dimensions(name))
         try:
+            # Execution stages use Cartesian poses in metres. The controller
+            # checks IK and collisions at each waypoint before moving.
             self.gripper.open_gripper()
             self.controller.move_end_effector(candidate.pre_grasp_pose,allowed_bodies=(body,),linear=False)
             self.controller.move_end_effector(candidate.grasp_pose,allowed_bodies=(body,))

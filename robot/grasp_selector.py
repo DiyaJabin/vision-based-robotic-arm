@@ -62,6 +62,11 @@ class Feasibility:
 
 def evaluate_clearance(target: Footprint, neighbours, table: TableBounds,
                        config: ClearanceConfig, approach=(0.,0.,-1.)) -> Feasibility:
+    """Check a top-down footprint against table edges and neighbouring bodies.
+
+    Coordinates are tabletop metres and the tool is approximated by a
+    conservative horizontal radius derived from the loaded flange geometry.
+    """
     if tuple(approach)!=(0.,0.,-1.):
         return Feasibility(False,"unsupported_approach_direction")
     # Inflate whichever is larger: target footprint or virtual tool cross-section.
@@ -85,7 +90,10 @@ def evaluate_clearance(target: Footprint, neighbours, table: TableBounds,
 
 
 def evaluate_reachability(kinematics, poses, table: TableBounds, *, obstacles=(), allowed_bodies=()):
-    """Table envelope is measured geometry, not a claimed reachable workspace."""
+    """Validate waypoint IK and collision feasibility in tabletop metres.
+
+    The table envelope is a measured scene bound, not a claimed robot workspace.
+    """
     seed=kinematics.current_joints()
     for pose in poses:
         x,y,z=pose.position

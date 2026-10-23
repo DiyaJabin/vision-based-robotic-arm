@@ -54,6 +54,12 @@ def randomized_positions(rng: random.Random, count: int):
 
 
 def run_trials(config: TrialConfig | None = None) -> list[dict]:
+    """Run independent randomized scenes and record real outcomes.
+
+    Positions are sampled in tabletop metres and yaw in radians. A trial row
+    records grasp and placement separately so a grasped-but-misplaced object is
+    not hidden as a generic failure.
+    """
     cfg = config or TrialConfig()
     rng = random.Random(cfg.seed)
 

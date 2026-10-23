@@ -96,12 +96,21 @@ def confidence_band(confidence: float, thresholds: ConfidenceThresholds | None =
 
 
 class HybridValidator:
+    """Apply the confidence gate and, only for medium scores, inspect pixels.
+
+    The detector confidence is kept separate from the OpenCV validation score.
+    This prevents a classical colour heuristic from being mistaken for a
+    calibrated neural-network probability.
+    """
     def __init__(self, thresholds: ConfidenceThresholds | None = None,
                  config: ValidationConfig | None = None):
         self.thresholds = thresholds or ConfidenceThresholds()
         self.config = config or ValidationConfig()
 
     def validate(self, frame: np.ndarray, detection: DetectionResult) -> ValidatedDetection:
+        # `frame` is an 8-bit BGR image and the detection box is in pixel units.
+        # The returned decision is consumed by the planner, which will reject
+        # low-confidence observations before attempting any robot motion.
         check_bgr(frame)
         reject = lambda reason: ValidatedDetection(detection, False, None, reason)
         if CLASS_IDS.get(detection.class_name) != detection.class_id:

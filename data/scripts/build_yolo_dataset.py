@@ -32,13 +32,18 @@ from data.scripts.generate_dataset import (
 
 
 def body_pixels(segmentation: np.ndarray, body_id: int) -> np.ndarray:
-    """Return visible pixel coordinates for a body, stripping link bits."""
+    """Return visible ``(row, column)`` pixels for a body ID.
+
+    PyBullet packs the body ID into the low 24 bits and link information into
+    the upper bits. Only the body ID is relevant for target labels.
+    """
     encoded = segmentation.astype(np.int64)
     visible_body = np.bitwise_and(encoded, 0xFFFFFF) == int(body_id)
     return np.argwhere(visible_body)
 
 
 def yolo_box(pixels: np.ndarray, width: int, height: int) -> tuple[float, float, float, float] | None:
+    """Convert visible pixel bounds to normalized YOLO centre/size values."""
     if pixels.size == 0:
         return None
     y_min, x_min = pixels.min(axis=0)
@@ -113,6 +118,8 @@ def build_dataset(count: int, output_dir: Path, seed: int, min_objects: int, max
             except Exception as error:
                 print(f"skip scene {attempt}: {error}")
                 continue
+            # RGB is the model input; segmentation is privileged simulator
+            # truth used only to label visible target pixels.
             image, segmentation = camera.capture_bgr_and_segmentation()
             labels = labels_for_scene(metadata, segmentation, image.shape[1], image.shape[0])
             if not labels:

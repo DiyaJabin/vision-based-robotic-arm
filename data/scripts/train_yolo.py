@@ -1,4 +1,8 @@
-"""Train and evaluate the project three-class YOLOv8 detector."""
+"""Train and evaluate the project three-class YOLOv8 detector.
+
+Training artifacts are written under ``runs/`` and the promoted model is kept
+separately at ``models/yolo/best.pt`` by the project workflow.
+"""
 from __future__ import annotations
 
 import argparse

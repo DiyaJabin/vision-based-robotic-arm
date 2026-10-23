@@ -50,6 +50,12 @@ def pose_from_contour(contour: np.ndarray, class_name: str) -> ObjectPose2D:
 
 
 def estimate_pose(frame: np.ndarray, bbox: BoundingBox, class_name: str) -> ObjectPose2D:
+    """Estimate centre, visible extents, and image-plane orientation.
+
+    The input box is in pixels and the returned centre is still in pixels;
+    conversion to metres happens later through the planar homography.
+    Cylinder yaw is intentionally left unobservable from a top view.
+    """
     contour, _ = roi_contour(frame, bbox, class_name)
     if contour is None:
         raise PoseEstimationError("No class-colour contour available for image pose.")
