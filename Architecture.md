@@ -70,7 +70,7 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 ### 1. PyBullet Tabletop Scene
 - **Role**: Serves as the primary physics simulation environment.
-- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), initial target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
+- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa), target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
 - **Physics**: Configured with real-world gravity (\(g = -9.81\,\text{m/s}^2\)) and realistic contact friction.
 
 ### 2. Virtual Overhead RGB Camera
