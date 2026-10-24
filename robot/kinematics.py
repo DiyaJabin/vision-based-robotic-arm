@@ -19,6 +19,7 @@ class IKResult:
 
 
 def downward_pose(x: float, y: float, z: float, yaw: float = 0.0) -> CartesianPose:
+    """Return a top-down flange pose in metres with yaw in radians."""
     return CartesianPose((x,y,z),tuple(p.getQuaternionFromEuler((0,math.pi,yaw))))
 
 
@@ -96,6 +97,11 @@ class Kinematics:
             p.removeState(state,physicsClientId=self.client_id)
 
     def solve(self, pose: CartesianPose, seed=None) -> IKResult:
+        """Solve IK and verify both position and orientation residuals.
+
+        PyBullet's solver proposes joint angles; this wrapper checks URDF
+        limits and forward-kinematics error before declaring the pose feasible.
+        """
         if not np.isfinite(pose.position).all() or len(pose.position)!=3:
             return IKResult(False,None,"invalid_target")
         orientation=np.asarray(pose.orientation,dtype=float)
@@ -138,6 +144,9 @@ class Kinematics:
 
     def current_collision_reason(self, obstacles, *, allowed_bodies=(), payload_id=None, penetration=0.001):
         """Arm, nonadjacent self, and carried-object penetration checks."""
+        # The target body is explicitly allowed during approach and grasp. All
+        # table, destination, other-object, and unsafe self contacts remain
+        # rejection conditions.
         for body in obstacles:
             if body in allowed_bodies or body==self.robot_id:
                 continue

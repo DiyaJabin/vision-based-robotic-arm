@@ -70,7 +70,7 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 ### 1. PyBullet Tabletop Scene
 - **Role**: Serves as the primary physics simulation environment.
-- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa / Franka Panda), initial target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
+- **Components**: Includes ground plane, tabletop, robotic arm (KUKA iiwa), target objects (0 = cube, 1 = cylinder, 2 = box; bottle and cup are future classes without IDs), and destination tray.
 - **Physics**: Configured with real-world gravity (\(g = -9.81\,\text{m/s}^2\)) and realistic contact friction.
 
 ### 2. Virtual Overhead RGB Camera
@@ -87,7 +87,7 @@ The system is structured as a sequential perception-to-action pipeline operating
 
 The implemented detector adapter does not assume that pretrained COCO class IDs represent `cube`, `cylinder`, or `box`; project detections are accepted only through supported names or an explicit custom-weight class mapping.
 
-The current custom model is trained from 90 synthetic 640 x 480 images with segmentation-derived labels. Baseline and YOLO-only simulated runs complete all three placements. Hybrid confidence gates remain `0.80` high and `0.50` medium; the current runtime scene produces only low-band detections, so hybrid safely reobserves instead of lowering the thresholds.
+The current custom model is trained from 90 synthetic 640 x 480 images with segmentation-derived labels. Baseline, YOLO-only, and hybrid simulated runs complete all three placements. Hybrid confidence gates remain `0.80` high and `0.50` medium; low scores from `0.03` up to `0.50` require independent OpenCV agreement, while scores below `0.03` are rejected.
 
 ---
 
@@ -112,8 +112,8 @@ The thresholds below are initial experimental, configurable values defined by `C
        (Score >= 0.80)   (0.50 <= Score < 0.80) (Score < 0.50)
                |                |                |
                v                v                v
-          Accept &        Apply Colour &     Reject / Re-observe
-        Extract Pose     Contour Validation     (Skip Target)
+          Accept &        Apply Colour &     Agreement floor
+        Extract Pose     Contour Validation   (0.03 <= score)
                                 |
                         +-------+-------+
                         |               |
@@ -130,7 +130,7 @@ The thresholds below are initial experimental, configurable values defined by `C
 2. **Medium-Confidence Detections (\(0.50 \le \mathrm{confidence} < 0.80\))**:
    - Subjected to HSV color verification and geometric contour consistency checks (e.g., aspect ratio, perimeter-to-area ratio). Detections passing validation are accepted; failing ones are discarded.
 3. **Low-Confidence Detections (\(< 0.50\))**:
-   - Automatically rejected or flagged for re-observation to prevent false positive picks.
+   - Scores below `0.03` are rejected. Scores above that floor still require the same OpenCV colour and shape agreement before pose estimation.
 
 ### Reachability and Graspability Evaluation
 

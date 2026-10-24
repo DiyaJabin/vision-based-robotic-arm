@@ -143,9 +143,21 @@ def compare_methods(csv_path: str | Path | None = None) -> pd.DataFrame:
 
 
 def main() -> int:
-    frame = compare_methods()
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Aggregate one isolated trial-results CSV by perception method."
+    )
+    parser.add_argument(
+        "--input-csv",
+        type=Path,
+        default=Path(__file__).resolve().parent / "results" / "trial_results.csv",
+        help="CSV containing only the evaluation run to compare.",
+    )
+    args = parser.parse_args()
+    frame = compare_methods(args.input_csv)
     if frame.empty:
-        print("No experiment CSV results found in experiments/results/. No comparison generated.")
+        print(f"No experiment CSV results found at {args.input_csv}. No comparison generated.")
         return 0
     print(frame.to_string())
     return 0

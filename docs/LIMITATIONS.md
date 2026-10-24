@@ -24,7 +24,7 @@ The image-generation utilities and configuration files support synthetic object 
 
 ## Experimental thresholds
 
-The confidence thresholds remain `0.50` for the medium band and `0.80` for the high band. They are configurable heuristics rather than scientifically calibrated operating parameters.
+The confidence thresholds remain `0.50` for the medium band and `0.80` for the high band. A separate experimental `0.03` minimum floor permits low-band detections only when OpenCV independently agrees on class, colour, shape, and spatial region. These values are configurable heuristics rather than scientifically calibrated operating parameters.
 
 ## Graspability assumptions
 
@@ -32,7 +32,7 @@ The graspability and clearance logic uses conservative, top-down, simple-grasp a
 
 ## Runtime verification status
 
-The baseline and YOLO-only pipelines have completed simulated end-to-end runs in the Windows PyBullet environment. The current trained model does not pass the configured hybrid confidence gate on that runtime scene, so hybrid completion remains unverified. The project still has no physical-robot validation.
+The baseline, YOLO-only, and hybrid pipelines have completed simulated end-to-end runs in the Windows PyBullet environment. Hybrid succeeds by requiring OpenCV agreement for the model's low-confidence runtime detections. The project still has no physical-robot validation.
 
 ## No physical hardware validation yet
 

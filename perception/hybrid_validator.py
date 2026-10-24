@@ -9,7 +9,12 @@ from perception.yolo_detector import check_bgr
 
 @dataclass(frozen=True)
 class ValidationConfig:
-    """Initial heuristics, not tuned or scientifically validated values."""
+    """Colour/shape heuristics and a bounded low-score agreement floor.
+
+    The floor is not a replacement for the medium threshold. It permits a
+    very low detector score only when the detector's box contains a valid
+    class-colour contour; scores below the floor are still rejected.
+    """
     min_colour_fraction: float = 0.20
     min_contour_area: float = 25.0
     min_solidity: float = 0.80
@@ -17,6 +22,7 @@ class ValidationConfig:
     min_rectangularity: float = 0.65
     max_cube_aspect: float = 1.40
     max_box_aspect: float = 3.0
+    low_confidence_floor: float = 0.03
 
     def __post_init__(self):
         for value in (self.min_colour_fraction, self.min_solidity, self.min_circularity, self.min_rectangularity):
@@ -26,6 +32,8 @@ class ValidationConfig:
             raise ValueError("Contour area must be positive.")
         if any(not math.isfinite(v) or v < 1 for v in (self.max_cube_aspect, self.max_box_aspect)):
             raise ValueError("Aspect limits must be finite and >= 1.")
+        if not math.isfinite(self.low_confidence_floor) or not 0 <= self.low_confidence_floor:
+            raise ValueError("Low-confidence floor must be finite and nonnegative.")
 
 
 @dataclass(frozen=True)
@@ -96,12 +104,21 @@ def confidence_band(confidence: float, thresholds: ConfidenceThresholds | None =
 
 
 class HybridValidator:
+    """Apply the confidence gate and, only for medium scores, inspect pixels.
+
+    The detector confidence is kept separate from the OpenCV validation score.
+    This prevents a classical colour heuristic from being mistaken for a
+    calibrated neural-network probability.
+    """
     def __init__(self, thresholds: ConfidenceThresholds | None = None,
                  config: ValidationConfig | None = None):
         self.thresholds = thresholds or ConfidenceThresholds()
         self.config = config or ValidationConfig()
 
     def validate(self, frame: np.ndarray, detection: DetectionResult) -> ValidatedDetection:
+        # `frame` is an 8-bit BGR image and the detection box is in pixel units.
+        # The returned decision is consumed by the planner, which will reject
+        # low-confidence observations before attempting any robot motion.
         check_bgr(frame)
         reject = lambda reason: ValidatedDetection(detection, False, None, reason)
         if CLASS_IDS.get(detection.class_name) != detection.class_id:
@@ -117,7 +134,7 @@ class HybridValidator:
         band = confidence_band(score, self.thresholds)
         if band == "high":
             return ValidatedDetection(detection, True, None, "high_confidence")
-        if band == "low":
+        if band == "low" and score < self.config.low_confidence_floor:
             return reject("low_confidence")
         import cv2
         contour, colour = roi_contour(frame, bbox, detection.class_name)
@@ -131,4 +148,8 @@ class HybridValidator:
         perimeter = cv2.arcLength(contour, True)
         circularity = min(1.0, 4*math.pi*area/(perimeter*perimeter)) if perimeter else 0.0
         aspect = max(w,h)/min(w,h) if min(w,h) else math.inf
-        return validate_metrics(detection,ContourMetrics(colour,area,solidity,rectangularity,circularity,aspect),self.config)
+        result = validate_metrics(detection,ContourMetrics(colour,area,solidity,rectangularity,circularity,aspect),self.config)
+        if band == "low" and result.accepted:
+            return ValidatedDetection(detection, True, result.validation_score,
+                                      "low_confidence_opencv_agreement")
+        return result

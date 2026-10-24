@@ -59,6 +59,9 @@ def compute_homography(image_points, world_points) -> tuple[tuple[float, ...], .
     Coordinates are normalised before solving the eight-parameter linear
     system. Duplicate/collinear/ill-conditioned correspondences are rejected.
     """
+    # Image points are pixel coordinates (u, v); world points are tabletop
+    # coordinates (x, y) in metres on one known plane. A homography cannot
+    # recover arbitrary depth, so the caller must choose the relevant plane.
     image, world = _points(image_points,"image_points"), _points(world_points,"world_points")
     src,src_matrix,_ = _normalise(image)
     dst,_,dst_inverse = _normalise(world)
@@ -76,6 +79,7 @@ def compute_homography(image_points, world_points) -> tuple[tuple[float, ...], .
 
 
 def pixel_to_world(homography, u: float, v: float) -> tuple[float,float]:
+    """Map one image pixel to tabletop metres using a calibrated plane."""
     try:
         h=tuple(tuple(float(x) for x in row) for row in homography)
     except (ValueError,TypeError) as error:

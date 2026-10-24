@@ -1,10 +1,12 @@
-"""Deterministic core contract/perception tests using only the standard library."""
+"""Deterministic core contract/perception tests with lightweight vision fixtures."""
 import math
 import unittest
+import cv2
+import numpy as np
 from core.config import CLASS_IDS, CLASS_NAMES, ConfidenceThresholds
 from core.contracts import BoundingBox, DetectionResult, ImagePoint, ObjectPose2D, ValidatedDetection
 from perception.calibration import compute_homography, pixel_to_world
-from perception.hybrid_validator import confidence_band, ContourMetrics, validate_metrics, ValidationConfig
+from perception.hybrid_validator import confidence_band, ContourMetrics, validate_metrics, ValidationConfig, HybridValidator
 from perception.pose_estimator import normalise_orientation
 from perception.yolo_detector import GenericDetection, ModelUnavailableError, YoloDetector
 
@@ -62,6 +64,21 @@ class GatingTests(unittest.TestCase):
 
     def test_invalid_validation_config(self):
         with self.assertRaises(ValueError): ValidationConfig(min_solidity=2)
+        with self.assertRaises(ValueError): ValidationConfig(low_confidence_floor=-.01)
+
+    def test_low_confidence_requires_explicit_opencv_agreement_floor(self):
+        self.assertEqual(ValidationConfig().low_confidence_floor, .03)
+
+    def test_low_confidence_agreement_path_has_floor(self):
+        frame = np.zeros((60, 60, 3), dtype=np.uint8)
+        cv2.rectangle(frame, (20, 20), (39, 39), (0, 0, 255), -1)
+        box = BoundingBox(18, 18, 24, 24)
+        accepted = HybridValidator().validate(frame, DetectionResult(0, "cube", .04, box, ImagePoint(30, 30)))
+        self.assertTrue(accepted.accepted)
+        self.assertEqual(accepted.reason, "low_confidence_opencv_agreement")
+        rejected = HybridValidator().validate(frame, DetectionResult(0, "cube", .02, box, ImagePoint(30, 30)))
+        self.assertFalse(rejected.accepted)
+        self.assertEqual(rejected.reason, "low_confidence")
 
 
 class DetectorMappingTests(unittest.TestCase):
