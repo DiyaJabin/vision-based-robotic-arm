@@ -67,6 +67,7 @@ models/*.pt
 runs/
 experiments/results/
 experiments/final_results/
+experiments/final_results_*/
 
 # Temporary Files & Logs
 *.log

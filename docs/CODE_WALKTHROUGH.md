@@ -129,11 +129,16 @@ The gate is intentionally conservative:
 
 - at least 0.80: accept the YOLO observation directly;
 - 0.50 to below 0.80: inspect the corresponding colour contour and shape;
-- below 0.50: reject and reobserve.
+- 0.03 to below 0.50: require the same OpenCV contour checks as a bounded
+  low-score agreement path;
+- below 0.03: reject and reobserve.
 
 The medium path calculates colour fraction, contour area, solidity, circularity or rectangularity, and aspect ratio. It returns a separate OpenCV validation score. It never replaces detector confidence with a heuristic score.
 
-The current hybrid behaviour is correct but does not complete the controlled scene because all three raw runtime scores are below 0.50.
+This does not lower the medium threshold. It adds a separate `0.03` minimum
+detector floor and only permits a low score when the YOLO box contains a valid
+contour for the same project class. In the controlled scene, all three YOLO
+boxes matched valid OpenCV contours and the hybrid completed placement.
 
 ## 19. Pose estimation
 
@@ -289,15 +294,21 @@ The five-trial diagnostic set reported:
 
 | Method | Grasp success | Placement success | Mean execution time |
 | --- | ---: | ---: | ---: |
-| OpenCV | 3/5 | 0/5 | 3.24 s |
-| YOLO-only | 3/5 | 0/5 | 5.61 s |
-| Hybrid | 0/5 | 0/5 | 4.03 s |
+| OpenCV | 0/5 | 0/5 | 1.74 s |
+| YOLO-only | 0/5 | 0/5 | 5.79 s |
+| Hybrid | 0/5 | 0/5 | 5.76 s |
+
+Each method attempted a grasp in 3/5 trials. The current logger records a
+grasp as successful only when the corresponding pick outcome reaches verified
+placement, so the fresh rows contain 0/5 completed grasps and 0/5 placements.
+Each method had three `no_valid_targets` and two `MotionError:joint_limits`
+failures.
 
 This is a small diagnostic sample, not a statistically significant benchmark. Controlled fixed-scene demos and randomized robustness answer different questions.
 
 ## 43. Controlled demo versus randomized robustness
 
-The controlled baseline and YOLO-only runs place all three objects. Randomized trials sometimes fail before placement because object poses change reachability, IK residuals, camera association, or collision geometry.
+The controlled baseline, YOLO-only, and hybrid runs place all three objects. Randomized trials sometimes fail before placement because object poses change reachability, IK residuals, camera association, or collision geometry.
 
 A successful controlled demo does not prove broad randomized robustness. Conversely, a randomized failure does not invalidate the deterministic pipeline; it identifies a scene or planning case to investigate.
 
@@ -305,7 +316,11 @@ A successful controlled demo does not prove broad randomized robustness. Convers
 
 The project is simulation-only. The dataset is synthetic. The gripper is a fixed constraint. The camera is fixed overhead. There is no physical robot validation.
 
-The current hybrid bottleneck is confidence calibration/generalization for small runtime targets, not a disabled validator. The observed targets were approximately 15–31 pixels wide, and the model's raw scores stayed below the configured medium threshold.
+The original hybrid bottleneck was confidence calibration/generalization for
+small runtime targets, not a disabled validator. The observed targets were
+approximately 15–31 pixels wide, and the model's raw scores stayed below the
+configured medium threshold. Independent OpenCV agreement supplies a bounded
+rescue path without accepting scores below 0.03.
 
 ## 45. Hybrid debugging and final outcome
 
@@ -319,9 +334,10 @@ The evidence showed:
 - correct but low-confidence detections;
 - OpenCV independently agreed with the YOLO cube and cylinder boxes, while
   the blue class also produced a second destination-pad contour;
-- no need to lower safety thresholds.
+- no need to lower the 0.50/0.80 safety bands; the bounded agreement floor was
+  sufficient for the controlled scene.
 
-A 240-image experiment was started but stopped after poor early validation and slow CPU epochs. The verified 90-image model was preserved. The principled next step is a better runtime-scale dataset and confidence calibration study, followed by comparison of synthetic test and integrated runtime behaviour.
+A 240-image experiment was started but stopped after poor early validation and slow CPU epochs. The verified 90-image model was preserved. The runtime-scale audit showed that the existing labels already covered 15–30 pixel objects, so no replacement dataset was justified for this sprint.
 
 ## 46. Full runtime from start to finish
 

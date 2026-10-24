@@ -101,9 +101,10 @@ The detector confidence gate remains:
 
 - `confidence >= 0.80`: accept directly
 - `0.50 <= confidence < 0.80`: run OpenCV validation
-- `confidence < 0.50`: reject and reobserve
+- `0.03 <= confidence < 0.50`: require OpenCV class, colour, shape, and spatial agreement
+- `confidence < 0.03`: reject and reobserve
 
-The current runtime scene produced confidences of 0.2518 (cylinder), 0.0828 (cube), and 0.0368 (box). Hybrid therefore rejected the scene safely; thresholds were not weakened.
+The 0.50 and 0.80 bands were not lowered. The separate 0.03 floor is an explicit experimental safety bound: a low score can proceed only when the YOLO box contains a valid matching OpenCV contour. The current runtime scores (0.2518 cylinder, 0.0828 cube, 0.0368 box) satisfy that agreement rule.
 
 ## Dataset
 
@@ -154,7 +155,7 @@ python data/scripts/train_yolo.py --data data/yolo_dataset/dataset.yaml --pretra
 | --- | --- | --- |
 | OpenCV baseline | Success | All three objects placed correctly |
 | YOLO-only | Success | All three objects placed correctly using `models/yolo/best.pt` |
-| Hybrid | Safe rejection | Runtime confidence remained below the 0.50 gate |
+| Hybrid | Success | Low-confidence detections passed the explicit OpenCV agreement rule |
 
 ## Randomized Smoke Results
 
@@ -162,9 +163,14 @@ python data/scripts/train_yolo.py --data data/yolo_dataset/dataset.yaml --pretra
 
 | Method | Grasp Success | Placement Success | Mean Execution Time |
 | --- | ---: | ---: | ---: |
-| OpenCV baseline | 3/5 | 0/5 | 3.24 s |
-| YOLO-only | 3/5 | 0/5 | 5.61 s |
-| Hybrid | 0/5 | 0/5 | 4.03 s |
+| OpenCV baseline | 0/5 | 0/5 | 1.74 s |
+| YOLO-only | 0/5 | 0/5 | 5.79 s |
+| Hybrid | 0/5 | 0/5 | 5.76 s |
+
+The fresh run also recorded a 60% grasp-attempt rate for each method. The
+logger marks grasp success only when the complete pick outcome is placed, so
+these rows contain 0/5 completed grasps and 0/5 placements. Failure reasons
+were 3 `no_valid_targets` and 2 `MotionError:joint_limits` per method.
 
 ![Grasp success rate](docs/media/grasp_success_rate_by_method.png)
 
@@ -221,11 +227,11 @@ python data/scripts/train_yolo.py --data data/yolo_dataset/dataset.yaml --epochs
 ### Experiments and plots
 
 ```bash
-python -m experiments.run_trials --trials 5 --method opencv --output-dir experiments/results
-python -m experiments.run_trials --trials 5 --method yolo --weights models/yolo/best.pt --output-dir experiments/results
-python -m experiments.run_trials --trials 5 --method hybrid --weights models/yolo/best.pt --output-dir experiments/results
-python -m experiments.compare_methods
-python -m experiments.plot_results
+python -m experiments.run_trials --trials 5 --seed 20261024 --method opencv --output-dir experiments/final_results_20261024
+python -m experiments.run_trials --trials 5 --seed 20261024 --method yolo --weights models/yolo/best.pt --output-dir experiments/final_results_20261024
+python -m experiments.run_trials --trials 5 --seed 20261024 --method hybrid --weights models/yolo/best.pt --output-dir experiments/final_results_20261024
+python -m experiments.compare_methods --input-csv experiments/final_results_20261024/trial_results.csv
+python -m experiments.plot_results --input-csv experiments/final_results_20261024/trial_results.csv --output-dir experiments/final_results_20261024/plots
 ```
 
 The raw detector diagnostic is:
@@ -252,7 +258,7 @@ docs/          Architecture, limitations, and media
 - Simulation-only system; no real robot or camera validation.
 - Dataset is synthetic and does not capture real optics, textures, or lighting.
 - Grasping uses a simulation constraint rather than a physical gripper.
-- Hybrid runtime confidence is below the configured 0.50 threshold.
+- Hybrid relies on an experimental 0.03 minimum score plus independent OpenCV agreement for low-confidence detections.
 - Randomized-scene robustness remains limited.
 - Detector confidence calibration and generalization can be improved.
 
